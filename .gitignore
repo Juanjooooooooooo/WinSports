@@ -1,23 +1,77 @@
-### AL ###
-#Template for AL projects for Dynamics 365 Business Central
-#launch.json folder
+# ─── Environment & Secrets ───────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ─── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+.installed.cfg
+MANIFEST
+
+# ─── Virtual Environments ────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+.Python
+
+# ─── Testing & Coverage ──────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.log
+nosetests.xml
+test-results/
+
+# ─── Type Checkers & Linters ─────────────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+
+# ─── IDE & Editors ───────────────────────────────────────────────────────────
 .vscode/
-#Cache folder
-.alcache/
-#Symbols folder
-.alpackages/
-#Snapshots folder
-.snapshots/
-#Testing Output folder
-.output/
-#Extension App-file
-*.app
-#Rapid Application Development File
-rad.json
-#Translation Base-file
-*.g.xlf
-#License-files
-*.bclicense
-*.flf
-#Test results file
-TestResults.xml
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ─── Jupyter ─────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ─── MongoDB local data ───────────────────────────────────────────────────────
+data/db/
+mongod.lock
+*.bson
+*.ns
+dump/
+
+# ─── Streamlit ───────────────────────────────────────────────────────────────
+.streamlit/secrets.toml
+
+# ─── Misc ────────────────────────────────────────────────────────────────────
+*.tmp
+*.bak
+*.orig

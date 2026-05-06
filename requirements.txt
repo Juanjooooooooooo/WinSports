@@ -1,0 +1,33 @@
+# ─── API ─────────────────────────────────────────────────────────────────────
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+
+# ─── Database ─────────────────────────────────────────────────────────────────
+motor==3.6.0          # async MongoDB driver (built on pymongo)
+pymongo==4.10.1
+beanie==1.27.0        # ODM async sobre Motor (opcional, evaluar uso)
+
+# ─── Validation & Settings ───────────────────────────────────────────────────
+pydantic==2.10.4
+pydantic-settings==2.7.0
+python-dotenv==1.0.1
+
+# ─── Frontend ────────────────────────────────────────────────────────────────
+streamlit==1.41.1
+pandas==2.2.3
+plotly==5.24.1
+httpx==0.28.1         # cliente HTTP para que Streamlit llame a la API
+
+# ─── Auth (JWT) ───────────────────────────────────────────────────────────────
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# ─── Testing ─────────────────────────────────────────────────────────────────
+pytest==8.3.4
+pytest-asyncio==0.24.0
+httpx==0.28.1         # también usado por TestClient de FastAPI
+
+# ─── Dev / Linting ───────────────────────────────────────────────────────────
+ruff==0.8.6
+mypy==1.14.0
