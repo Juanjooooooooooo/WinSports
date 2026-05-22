@@ -1,3 +1,5 @@
+# --- LA BASE DE DATOS ES MUY GRANDE XDDDDDDDD ---
+data/analyticsPlayer.csv
 # ─── Environment & Secrets ───────────────────────────────────────────────────
 .env
 .env.*
