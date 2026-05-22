@@ -8,7 +8,5 @@ MAX_PAGE_SIZE = 500
 
 # Colecciones MongoDB
 COLLECTION_EVENTS = "events"
-COLLECTION_USERS = "users"
-COLLECTION_STREAMS = "streams"
-COLLECTION_METRICS = "metrics"
-COLLECTION_CHANNELS = "channels"
+COLLECTION_SESSIONS = "sessions"
+COLLECTION_STATS = "content_stats"
