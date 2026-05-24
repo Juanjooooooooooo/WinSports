@@ -1,0 +1,29 @@
+/* Tema por defecto: Brand */
+[data-theme="brand"] {
+    --color-primary: #ff6b00;
+    --color-primary-dim: #cc5500;
+    --color-bg: #1a1a1a;
+    --color-surface: #252525;
+    --color-surface-2: #2e2e2e;
+    --color-border: #333333;
+    --color-text: #f0f0f0;
+    --color-text-muted: #888888;
+    --color-success: #22c55e;
+    --color-warning: #eab308;
+    --color-danger: #ef4444;
+}
+
+/* Tema alternativo: Premium */
+[data-theme="premium"] {
+    --color-primary: #e85d00;
+    --color-primary-dim: #b84a00;
+    --color-bg: #111318;
+    --color-surface: #1c1f28;
+    --color-surface-2: #252a36;
+    --color-border: #2e3340;
+    --color-text: #eaeaea;
+    --color-text-muted: #6b7280;
+    --color-success: #22c55e;
+    --color-warning: #eab308;
+    --color-danger: #ef4444;
+}
