@@ -122,6 +122,8 @@ export default function ContentCompletionRanking({ data }) {
         border: "1px solid var(--color-border)",
         borderRadius: "8px",
         padding: "24px",
+        width: "100%",
+        boxSizing: "border-box",
       }}
     >
       <h3
@@ -136,7 +138,7 @@ export default function ContentCompletionRanking({ data }) {
         Completion por contenido
       </h3>
 
-      <div style={{ display: "flex", gap: "24px" }}>
+      <div style={{ display: "flex", gap: "24px", alignItems: "flex-start" }}>
         {renderList(data.most_completed, "✅ Más completados")}
         <div style={{ width: "1px", background: "var(--color-border)" }} />
         {renderList(data.most_abandoned, "❌ Más abandonados")}

@@ -1,6 +1,7 @@
 // src/App.jsx
 import { useState } from "react";
 import Overview from "./pages/Overview";
+import Users from "./pages/Users";
 
 const PAGES = ["Overview", "QoE", "Usuarios", "Alertas", "Admin"];
 
@@ -93,6 +94,7 @@ export default function App() {
         </h1>
 
         {activePage === "Overview" && <Overview />}
+        {activePage === "Usuarios" && <Users />}
         {activePage !== "Overview" && (
           <div
             style={{
