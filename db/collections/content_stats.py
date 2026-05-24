@@ -2,7 +2,7 @@
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from config.constants import COLLECTION_STATS
+from config.constants import COLLECTION_SESSIONS, COLLECTION_STATS
 from db.indexes.content_stats import CONTENT_STATS_INDEXES
 
 CONTENT_STATS_VALIDATOR = {

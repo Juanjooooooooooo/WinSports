@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.routes.overview import router as overview_router
 from config.constants import APP_DESCRIPTION, APP_NAME, APP_VERSION
 from config.settings import settings
 from db.collections.content_stats import watch_sessions_and_sync_content_stats
@@ -37,5 +38,4 @@ app.add_middleware(
 )
 
 # Registrar routers aquí a medida que se creen
-# from api.routes import events, users, streams, metrics
-# app.include_router(events.router, prefix="/events", tags=["Events"])
+app.include_router(overview_router)
