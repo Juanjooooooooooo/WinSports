@@ -71,7 +71,7 @@ document.documentElement.setAttribute('data-theme', 'brand') // o 'premium'
 |----------|----------------|
 | Overview | En desarrollo  |
 | QoE      | En construcción|
-| Usuarios | En construcción|
+| Usuarios | En desarrollo  |
 | Alertas  | En construcción|
 | Admin    | En construcción|
 
@@ -92,3 +92,21 @@ document.documentElement.setAttribute('data-theme', 'brand') // o 'premium'
 | ActivityTimeline    | `activity-by-hour`                 | ✅ Listo   |
 | ContentRanking      | Pendiente compañero                | ⏳ Pendiente|
 | UsersMap            | Pendiente compañero                | ⏳ Pendiente|
+
+### Users
+| Endpoint                                      | Método | Descripción                                    |
+|-----------------------------------------------|--------|------------------------------------------------|
+| `/api/users/retention-funnel`                 | GET    | Funnel de retención por hitos                  |
+| `/api/users/activity-heatmap`                 | GET    | Sesiones por hora y día de semana              |
+| `/api/users/content-completion-ranking`       | GET    | Ranking de contenidos por completion rate      |
+| `/api/users/user-profiles`                    | GET    | Clasificación Casual / Regular / Heavy         |
+
+Query params: `content-completion-ranking` acepta `min_plays` (default: 5)
+
+### Componentes Users
+| Componente               | Datos que consume              | Estado       |
+|--------------------------|-------------------------------|--------------|
+| UserProfiles             | `user-profiles`               | ⏳ Pendiente  |
+| ActivityHeatmap          | `activity-heatmap`            | ✅ Listo      |
+| ContentCompletionRanking | `content-completion-ranking`  | ✅ Listo      |
+| RetentionFunnel          | `retention-funnel`            | ⏳ Pendiente  |

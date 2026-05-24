@@ -57,7 +57,14 @@ export default function ActivityHeatmap({ data }) {
         Actividad por hora y día
       </h3>
 
-      <div style={{ overflowX: "auto" }}>
+      <div
+        style={{
+          overflowX: "auto",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+        }}
+      >
         {/* Header horas */}
         <div
           style={{ display: "flex", marginLeft: "36px", marginBottom: "4px" }}

@@ -95,20 +95,21 @@ export default function App() {
 
         {activePage === "Overview" && <Overview />}
         {activePage === "Usuarios" && <Users />}
-        {activePage !== "Overview" && (
-          <div
-            style={{
-              background: "var(--color-surface)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "8px",
-              padding: "48px",
-              textAlign: "center",
-              color: "var(--color-text-muted)",
-            }}
-          >
-            {activePage} — en construcción
-          </div>
-        )}
+        {activePage !== "Overview" ||
+          (activePage !== "Usuarios" && (
+            <div
+              style={{
+                background: "var(--color-surface)",
+                border: "1px solid var(--color-border)",
+                borderRadius: "8px",
+                padding: "48px",
+                textAlign: "center",
+                color: "var(--color-text-muted)",
+              }}
+            >
+              {activePage} — en construcción
+            </div>
+          ))}
       </main>
     </div>
   );
