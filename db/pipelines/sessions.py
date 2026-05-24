@@ -59,8 +59,12 @@ def _build_sessions(events: list[dict]) -> list[dict]:
             positions = [e["position"] for e in sub if e.get("position") is not None]
             max_position = max(positions) if positions else None
             duration = first.get("duration")
+            # Cap a 100%: algunas filas traen Position en una unidad distinta a
+            # Duration (ms vs s) o posiciones residuales de sesiones previas, lo
+            # que dispara el porcentaje por encima de 100. Capear evita que esos
+            # outliers contaminen los promedios de completion del dashboard.
             completion_pct = (
-                round(max_position / duration * 100, 2)
+                round(min(max_position / duration * 100, 100.0), 2)
                 if duration and duration > 0 and max_position is not None
                 else None
             )

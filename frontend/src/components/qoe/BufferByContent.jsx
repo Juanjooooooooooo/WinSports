@@ -1,6 +1,6 @@
-// src/components/overview/ContentRanking.jsx
+// src/components/qoe/BufferByContent.jsx
 
-export default function ContentRanking({ data }) {
+export default function BufferByContent({ data }) {
   return (
     <div
       style={{
@@ -19,33 +19,21 @@ export default function ContentRanking({ data }) {
           marginBottom: "20px",
         }}
       >
-        Contenido más visto
+        Buffer promedio por contenido
       </h3>
 
       {!data ? (
-        <div
-          style={{
-            color: "var(--color-text-muted)",
-            textAlign: "center",
-            padding: "24px",
-          }}
-        >
+        <div style={{ color: "var(--color-text-muted)", textAlign: "center" }}>
           Cargando...
         </div>
       ) : data.length === 0 ? (
-        <div
-          style={{
-            color: "var(--color-text-muted)",
-            textAlign: "center",
-            padding: "24px",
-          }}
-        >
-          Sin datos
+        <div style={{ color: "var(--color-text-muted)", textAlign: "center" }}>
+          Sin buffering registrado
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           {data.map((item, i) => {
-            const max = Math.max(...data.map((d) => d.total_plays), 1);
+            const max = Math.max(...data.map((d) => d.avg_buffer_time), 1);
             return (
               <div key={i}>
                 <div
@@ -63,27 +51,19 @@ export default function ContentRanking({ data }) {
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
-                      maxWidth: "72%",
+                      maxWidth: "65%",
                     }}
                   >
-                    <span
-                      style={{
-                        color: "var(--color-text-muted)",
-                        marginRight: "8px",
-                      }}
-                    >
-                      {i + 1}.
-                    </span>
                     {item.title || "—"}
                   </span>
                   <span
                     style={{
                       fontSize: "13px",
                       fontWeight: "600",
-                      color: "var(--color-primary)",
+                      color: "var(--color-warning)",
                     }}
                   >
-                    {item.total_plays.toLocaleString()}
+                    {item.avg_buffer_time}s
                   </span>
                 </div>
                 <div
@@ -97,11 +77,20 @@ export default function ContentRanking({ data }) {
                   <div
                     style={{
                       height: "100%",
-                      width: `${(item.total_plays / max) * 100}%`,
-                      background: "var(--color-primary)",
+                      width: `${(item.avg_buffer_time / max) * 100}%`,
+                      background: "var(--color-warning)",
                       borderRadius: "3px",
                     }}
                   />
+                </div>
+                <div
+                  style={{
+                    fontSize: "10px",
+                    color: "var(--color-text-muted)",
+                    marginTop: "2px",
+                  }}
+                >
+                  {item.total_plays} reproducciones · rebuffer {item.rebuffer_rate}%
                 </div>
               </div>
             );

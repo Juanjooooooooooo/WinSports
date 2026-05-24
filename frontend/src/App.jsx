@@ -1,9 +1,11 @@
 // src/App.jsx
 import { useState } from "react";
 import Overview from "./pages/Overview";
+import QoE from "./pages/QoE";
 import Users from "./pages/Users";
 
 const PAGES = ["Overview", "QoE", "Usuarios", "Alertas", "Admin"];
+const IMPLEMENTED = new Set(["Overview", "QoE", "Usuarios"]);
 
 export default function App() {
   const [activePage, setActivePage] = useState("Overview");
@@ -94,22 +96,22 @@ export default function App() {
         </h1>
 
         {activePage === "Overview" && <Overview />}
+        {activePage === "QoE" && <QoE />}
         {activePage === "Usuarios" && <Users />}
-        {activePage !== "Overview" ||
-          (activePage !== "Usuarios" && (
-            <div
-              style={{
-                background: "var(--color-surface)",
-                border: "1px solid var(--color-border)",
-                borderRadius: "8px",
-                padding: "48px",
-                textAlign: "center",
-                color: "var(--color-text-muted)",
-              }}
-            >
-              {activePage} — en construcción
-            </div>
-          ))}
+        {!IMPLEMENTED.has(activePage) && (
+          <div
+            style={{
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "8px",
+              padding: "48px",
+              textAlign: "center",
+              color: "var(--color-text-muted)",
+            }}
+          >
+            {activePage} — en construcción
+          </div>
+        )}
       </main>
     </div>
   );

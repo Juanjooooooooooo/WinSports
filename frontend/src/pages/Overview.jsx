@@ -8,13 +8,19 @@ import UsersMap from "../components/overview/UsersMap";
 
 export default function Overview() {
   const [uniqueUsers, setUniqueUsers] = useState(null);
+  const [totalPlays, setTotalPlays] = useState(null);
   const [deviceRanking, setDeviceRanking] = useState(null);
   const [activityByHour, setActivityByHour] = useState(null);
+  const [topContent, setTopContent] = useState(null);
 
   useEffect(() => {
     fetch("/api/overview/unique-users")
       .then((r) => r.json())
       .then((d) => setUniqueUsers(d.total));
+
+    fetch("/api/overview/total-plays")
+      .then((r) => r.json())
+      .then((d) => setTotalPlays(d.total));
 
     fetch("/api/overview/device-ranking")
       .then((r) => r.json())
@@ -23,9 +29,14 @@ export default function Overview() {
     fetch("/api/overview/activity-by-hour")
       .then((r) => r.json())
       .then((d) => setActivityByHour(d.activity));
+
+    fetch("/api/overview/top-content?limit=8")
+      .then((r) => r.json())
+      .then((d) => setTopContent(d.content));
   }, []);
 
   const deviceLider = deviceRanking?.[0]?.device ?? null;
+  const contenidoTop = topContent?.[0]?.title ?? null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -37,13 +48,27 @@ export default function Overview() {
           gap: "16px",
         }}
       >
-        <KPICard title="Total Reproducciones" value={null} />
+        <KPICard
+          title="Total Reproducciones"
+          value={totalPlays?.toLocaleString() ?? null}
+          subtitle="sesiones de reproducción"
+        />
         <KPICard
           title="Usuarios Únicos"
           value={uniqueUsers}
           subtitle="suscriptores distintos"
         />
-        <KPICard title="Contenido Más Visto" value={null} />
+        <KPICard
+          title="Contenido Más Visto"
+          value={
+            contenidoTop ? (
+              <span style={{ fontSize: "18px" }}>{contenidoTop}</span>
+            ) : null
+          }
+          subtitle={
+            topContent?.[0] ? `${topContent[0].total_plays} reproducciones` : null
+          }
+        />
         <KPICard
           title="Dispositivo Líder"
           value={deviceLider}
@@ -74,7 +99,7 @@ export default function Overview() {
         }}
       >
         <ActivityTimeline data={activityByHour} />
-        <ContentRanking />
+        <ContentRanking data={topContent} />
       </div>
     </div>
   );

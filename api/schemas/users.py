@@ -35,7 +35,11 @@ class ContentCompletionRankingResponse(BaseModel):
 class UserProfileItem(BaseModel):
     profile: str
     count: int
+    total_events: int = 0
+    avg_events: float = 0.0
+    range: str = ""
 
 
 class UserProfilesResponse(BaseModel):
     profiles: list[UserProfileItem]
+    total_users: int = 0

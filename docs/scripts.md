@@ -10,13 +10,18 @@ uv run scripts/load_csv.py --file data/archivo.csv
 ```
 
 **Qué hace:**
-1. Lee el CSV con pandas
-2. Parsea cada fila (casteo de tipos, NaN → None, fecha → datetime UTC)
-3. Filtra filas sin date, subscriber_id, customer_id o type_event
-4. Inserta en batches de 1.000 documentos con ordered=False
+1. Configura la colección `events` (crea con validator + índices, o re-aplica el
+   validator vía `collMod` si ya existe)
+2. Lee el CSV con pandas
+3. Parsea cada fila (casteo de tipos, NaN → None, fecha → datetime UTC; los
+   enteros tipo `"2023.0"` se castean vía float)
+4. Filtra filas sin date, subscriber_id, customer_id, type_event o device_type
+   (los campos obligatorios del validator)
+5. Inserta en batches de 1.000 documentos con ordered=False
 
 **ordered=False:** si un documento falla la validación de Mongo,
-el batch continúa en vez de detenerse.
+el batch continúa en vez de detenerse. El conteo de insertados se toma del
+resultado real de cada batch (incluyendo el `nInserted` de un BulkWriteError).
 
 ---
 

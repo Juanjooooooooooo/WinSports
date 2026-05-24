@@ -2,7 +2,12 @@
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from config.constants import COLLECTION_SESSIONS, COLLECTION_STATS
+from config.constants import COLLECTION_EVENTS, COLLECTION_SESSIONS, COLLECTION_STATS
+
+# Umbrales de clasificación de usuarios por número de eventos generados.
+# Vague: usuario esporádico · Mid: recurrente · Heavy: muy activo.
+PROFILE_MID_MIN = 10
+PROFILE_HEAVY_MIN = 50
 
 
 async def get_retention_funnel(db: AsyncIOMotorDatabase) -> dict:
@@ -92,39 +97,67 @@ async def get_content_completion_ranking(
 
 
 async def get_user_profiles(db: AsyncIOMotorDatabase) -> dict:
+    """
+    Clasifica a cada usuario por su número total de eventos generados:
+      - Vague: < PROFILE_MID_MIN eventos
+      - Mid:   entre PROFILE_MID_MIN y PROFILE_HEAVY_MIN - 1
+      - Heavy: >= PROFILE_HEAVY_MIN eventos
+    """
     pipeline = [
-        {"$group": {"_id": "$subscriber_id", "sessions": {"$sum": 1}}},
+        {"$group": {"_id": "$subscriber_id", "events": {"$sum": 1}}},
         {
             "$project": {
                 "_id": 0,
+                "events": 1,
                 "profile": {
                     "$switch": {
                         "branches": [
-                            {"case": {"$lt": ["$sessions", 3]}, "then": "Casual"},
-                            {"case": {"$lte": ["$sessions", 10]}, "then": "Regular"},
+                            {
+                                "case": {"$lt": ["$events", PROFILE_MID_MIN]},
+                                "then": "Vague",
+                            },
+                            {
+                                "case": {"$lt": ["$events", PROFILE_HEAVY_MIN]},
+                                "then": "Mid",
+                            },
                         ],
                         "default": "Heavy",
                     }
                 },
             }
         },
-        {"$group": {"_id": "$profile", "count": {"$sum": 1}}},
         {
-            "$project": {
-                "_id": 0,
-                "profile": "$_id",
-                "count": 1,
+            "$group": {
+                "_id": "$profile",
+                "count": {"$sum": 1},
+                "total_events": {"$sum": "$events"},
+                "avg_events": {"$avg": "$events"},
             }
         },
     ]
-    result = await db[COLLECTION_SESSIONS].aggregate(pipeline).to_list(length=None)
+    result = await db[COLLECTION_EVENTS].aggregate(pipeline).to_list(length=None)
+    lookup = {r["_id"]: r for r in result}
 
-    # Garantizar los tres perfiles aunque alguno tenga 0
-    lookup = {r["profile"]: r["count"] for r in result}
+    ranges = {
+        "Vague": f"< {PROFILE_MID_MIN} eventos",
+        "Mid": f"{PROFILE_MID_MIN}–{PROFILE_HEAVY_MIN - 1} eventos",
+        "Heavy": f"≥ {PROFILE_HEAVY_MIN} eventos",
+    }
+
+    profiles = []
+    for name in ("Heavy", "Mid", "Vague"):
+        r = lookup.get(name, {})
+        profiles.append(
+            {
+                "profile": name,
+                "count": r.get("count", 0),
+                "total_events": r.get("total_events", 0),
+                "avg_events": round(r.get("avg_events") or 0.0, 1),
+                "range": ranges[name],
+            }
+        )
+
     return {
-        "profiles": [
-            {"profile": "Casual", "count": lookup.get("Casual", 0)},
-            {"profile": "Regular", "count": lookup.get("Regular", 0)},
-            {"profile": "Heavy", "count": lookup.get("Heavy", 0)},
-        ]
+        "profiles": profiles,
+        "total_users": sum(p["count"] for p in profiles),
     }

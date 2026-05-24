@@ -39,12 +39,6 @@ export default function ContentCompletionRanking({ data }) {
       </div>
     );
 
-  const allItems = [
-    ...(data.most_completed || []),
-    ...(data.most_abandoned || []),
-  ];
-  const maxPlays = Math.max(...allItems.map((d) => d.total_plays), 1);
-
   const renderList = (items, label) => (
     <div style={{ flex: 1 }}>
       <div

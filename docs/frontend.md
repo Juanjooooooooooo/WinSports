@@ -67,31 +67,50 @@ document.documentElement.setAttribute('data-theme', 'brand') // o 'premium'
 ```
 
 ## Páginas
-| Página   | Estado         |
-|----------|----------------|
-| Overview | En desarrollo  |
-| QoE      | En construcción|
-| Usuarios | En desarrollo  |
-| Alertas  | En construcción|
-| Admin    | En construcción|
+| Página   | Estado          |
+|----------|-----------------|
+| Overview | ✅ Listo        |
+| QoE      | ✅ Listo        |
+| Usuarios | ✅ Listo        |
+| Alertas  | En construcción |
+| Admin    | En construcción |
 
 ## Endpoints implementados
 
 ### Overview
-| Endpoint                        | Método | Descripción                        |
-|---------------------------------|--------|------------------------------------|
-| `/api/overview/unique-users`    | GET    | Total de suscriptores únicos       |
-| `/api/overview/device-ranking`  | GET    | Sesiones agrupadas por dispositivo |
-| `/api/overview/activity-by-hour`| GET    | Sesiones agrupadas por hora del día|
+| Endpoint                        | Método | Descripción                          |
+|---------------------------------|--------|--------------------------------------|
+| `/api/overview/unique-users`    | GET    | Total de suscriptores únicos         |
+| `/api/overview/total-plays`     | GET    | Total de reproducciones (sesiones)   |
+| `/api/overview/device-ranking`  | GET    | Sesiones agrupadas por dispositivo   |
+| `/api/overview/activity-by-hour`| GET    | Sesiones agrupadas por hora del día  |
+| `/api/overview/top-content`     | GET    | Contenidos más vistos (param `limit`)|
+| `/api/overview/users-map`       | GET    | Puntos del mapa, uno por usuario activo (param `limit`) |
 
 ### Componentes Overview
 | Componente          | Datos que consume                  | Estado     |
 |---------------------|------------------------------------|------------|
-| KPICard             | `unique-users`, `device-ranking`   | ✅ Listo   |
+| KPICard             | `unique-users`, `total-plays`, `top-content`, `device-ranking` | ✅ Listo |
 | DeviceRanking       | `device-ranking`                   | ✅ Listo   |
 | ActivityTimeline    | `activity-by-hour`                 | ✅ Listo   |
-| ContentRanking      | Pendiente compañero                | ⏳ Pendiente|
-| UsersMap            | Pendiente compañero                | ⏳ Pendiente|
+| ContentRanking      | `top-content`                      | ✅ Listo   |
+| UsersMap            | `users-map` (Leaflet, burbujas)    | ✅ Listo   |
+
+### QoE
+| Endpoint                       | Método | Descripción                                       |
+|--------------------------------|--------|---------------------------------------------------|
+| `/api/qoe/buffer-by-content`   | GET    | Buffer promedio por contenido (param `limit`)     |
+| `/api/qoe/rebuffering-rate`    | GET    | Tasa de re-buffering por eventos y por sesiones   |
+| `/api/qoe/startup-time`        | GET    | Tiempo de inicialización (avg/max + distribución) |
+| `/api/qoe/event-ranking`       | GET    | Ranking de tipos de evento por frecuencia         |
+
+### Componentes QoE
+| Componente        | Datos que consume        | Estado   |
+|-------------------|--------------------------|----------|
+| RebufferingRate   | `rebuffering-rate`       | ✅ Listo |
+| StartupTime       | `startup-time`           | ✅ Listo |
+| BufferByContent   | `buffer-by-content`      | ✅ Listo |
+| EventRanking      | `event-ranking`          | ✅ Listo |
 
 ### Users
 | Endpoint                                      | Método | Descripción                                    |
@@ -103,10 +122,13 @@ document.documentElement.setAttribute('data-theme', 'brand') // o 'premium'
 
 Query params: `content-completion-ranking` acepta `min_plays` (default: 5)
 
+Nota: `user-profiles` clasifica por **número de eventos** por usuario
+(Vague / Mid / Heavy) y devuelve `count`, `total_events`, `avg_events` y `range`.
+
 ### Componentes Users
-| Componente               | Datos que consume              | Estado       |
-|--------------------------|-------------------------------|--------------|
-| UserProfiles             | `user-profiles`               | ⏳ Pendiente  |
-| ActivityHeatmap          | `activity-heatmap`            | ✅ Listo      |
-| ContentCompletionRanking | `content-completion-ranking`  | ✅ Listo      |
-| RetentionFunnel          | `retention-funnel`            | ⏳ Pendiente  |
+| Componente               | Datos que consume              | Estado    |
+|--------------------------|-------------------------------|-----------|
+| UserProfiles             | `user-profiles`               | ✅ Listo  |
+| ActivityHeatmap          | `activity-heatmap`            | ✅ Listo  |
+| ContentCompletionRanking | `content-completion-ranking`  | ✅ Listo  |
+| RetentionFunnel          | `retention-funnel`            | ✅ Listo  |

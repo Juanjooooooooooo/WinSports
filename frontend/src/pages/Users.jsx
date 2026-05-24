@@ -2,25 +2,14 @@
 import { useState, useEffect } from "react";
 import ActivityHeatmap from "../components/users/ActivityHeatmap";
 import ContentCompletionRanking from "../components/users/ContentCompletionRanking";
-
-const Placeholder = ({ title }) => (
-  <div
-    style={{
-      background: "var(--color-surface)",
-      border: "1px solid var(--color-border)",
-      borderRadius: "8px",
-      padding: "48px",
-      textAlign: "center",
-      color: "var(--color-text-muted)",
-    }}
-  >
-    {title} — pendiente
-  </div>
-);
+import UserProfiles from "../components/users/UserProfiles";
+import RetentionFunnel from "../components/users/RetentionFunnel";
 
 export default function Users() {
   const [heatmap, setHeatmap] = useState(null);
   const [completion, setCompletion] = useState(null);
+  const [profiles, setProfiles] = useState(null);
+  const [funnel, setFunnel] = useState(null);
 
   useEffect(() => {
     fetch("/api/users/activity-heatmap")
@@ -30,12 +19,23 @@ export default function Users() {
     fetch("/api/users/content-completion-ranking?min_plays=1")
       .then((r) => r.json())
       .then((d) => setCompletion(d));
+
+    fetch("/api/users/user-profiles")
+      .then((r) => r.json())
+      .then(setProfiles);
+
+    fetch("/api/users/retention-funnel")
+      .then((r) => r.json())
+      .then(setFunnel);
   }, []);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* Perfiles de usuario */}
-      <Placeholder title="Perfiles de usuario (Casual / Regular / Heavy)" />
+      <UserProfiles data={profiles} />
+
+      {/* Funnel de retención */}
+      <RetentionFunnel data={funnel} />
 
       {/* Heatmap + Completion */}
       <div
@@ -48,9 +48,6 @@ export default function Users() {
         <ActivityHeatmap data={heatmap} />
         <ContentCompletionRanking data={completion} />
       </div>
-
-      {/* Funnel */}
-      <Placeholder title="Funnel de retención" />
     </div>
   );
 }
