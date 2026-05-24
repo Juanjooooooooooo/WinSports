@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config.constants import APP_DESCRIPTION, APP_NAME, APP_VERSION
 from config.settings import settings
+from db.collections.content_stats import watch_sessions_and_sync_content_stats
 from db.collections.sessions import watch_events_and_sync_sessions
 from db.connection import connect, disconnect, get_db
 
@@ -15,6 +16,7 @@ async def lifespan(app: FastAPI):
     await connect()
     db = get_db()
     asyncio.create_task(watch_events_and_sync_sessions(db))
+    asyncio.create_task(watch_sessions_and_sync_content_stats(db))
     yield
     await disconnect()
 
