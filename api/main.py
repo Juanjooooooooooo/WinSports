@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -5,12 +6,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config.constants import APP_DESCRIPTION, APP_NAME, APP_VERSION
 from config.settings import settings
-from db.connection import connect, disconnect
+from db.collections.sessions import watch_events_and_sync_sessions
+from db.connection import connect, disconnect, get_db
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await connect()
+    db = get_db()
+    asyncio.create_task(watch_events_and_sync_sessions(db))
     yield
     await disconnect()
 
