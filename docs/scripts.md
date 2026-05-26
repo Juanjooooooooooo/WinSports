@@ -23,6 +23,11 @@ uv run scripts/load_csv.py --file data/archivo.csv
 el batch continúa en vez de detenerse. El conteo de insertados se toma del
 resultado real de cada batch (incluyendo el `nInserted` de un BulkWriteError).
 
+**Parseo compartido:** los casteos (`_to_int`, `_to_date`, `parse_row`, …) y la
+inserción por batches viven en `db/csv_ingest.py`. `load_csv.py` los re-exporta,
+y el endpoint `POST /api/admin/upload-csv` usa el mismo módulo — así el script y
+el panel de admin procesan los CSVs de forma idéntica.
+
 ---
 
 ## test_pipeline.py

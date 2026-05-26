@@ -42,20 +42,23 @@ hay que actualizar ese valor.
 ```
 src/
 ├── components/
-│   └── overview/
-│       ├── KPICard.jsx          — tarjeta de métrica reutilizable
-│       ├── DeviceRanking.jsx    — ranking de dispositivos
-│       ├── ActivityTimeline.jsx — actividad por hora del día
-│       ├── ContentRanking.jsx   — contenidos más vistos
-│       └── UsersMap.jsx         — mapa de usuarios por país
-├── pages/
-│   └── Overview.jsx             — página principal del dashboard
+│   ├── overview/   KPICard · DeviceRanking · ActivityTimeline · ContentRanking · UsersMap
+│   ├── qoe/        RebufferingRate · StartupTime · BufferByContent · EventRanking
+│   ├── users/      UserProfiles · RetentionFunnel · ActivityHeatmap · ContentCompletionRanking
+│   └── admin/      CollectionCounts · CsvUploader · DocumentTable
+├── pages/          Overview.jsx · QoE.jsx · Users.jsx · Admin.jsx
+├── layout/         SideBar · TopBar
 ├── styles/
-│   └── theme.css                — CSS variables de los dos temas
-├── App.jsx                      — layout principal + navegación
-├── main.jsx                     — punto de entrada
-└── index.css                    — reset global + import del tema
+│   └── theme.css   — CSS variables de los dos temas
+├── test/
+│   └── setup.jsx   — setup de Vitest (jsdom, mocks de react-leaflet y fetch)
+├── App.jsx         — layout principal + navegación
+├── main.jsx        — punto de entrada
+└── index.css       — reset global + import del tema
 ```
+
+Los tests de componentes viven junto a cada `*.jsx` como `*.test.jsx`.
+Ver [testing](#testing) abajo.
 ## Temas
 El dashboard tiene dos temas definidos en `src/styles/theme.css`:
 - **brand** — naranja Win Sports `#FF6B00` sobre gris oscuro `#1A1A1A`
@@ -73,7 +76,7 @@ document.documentElement.setAttribute('data-theme', 'brand') // o 'premium'
 | QoE      | ✅ Listo        |
 | Usuarios | ✅ Listo        |
 | Alertas  | En construcción |
-| Admin    | En construcción |
+| Admin    | ✅ Listo        |
 
 ## Endpoints implementados
 
@@ -132,3 +135,36 @@ Nota: `user-profiles` clasifica por **número de eventos** por usuario
 | ActivityHeatmap          | `activity-heatmap`            | ✅ Listo  |
 | ContentCompletionRanking | `content-completion-ranking`  | ✅ Listo  |
 | RetentionFunnel          | `retention-funnel`            | ✅ Listo  |
+
+### Admin
+
+Panel de gestión de datos. Detalle completo en [`admin.md`](admin.md).
+
+| Endpoint                                   | Método | Descripción                               |
+|--------------------------------------------|--------|-------------------------------------------|
+| `/api/admin/collections`                   | GET    | Conteo de documentos por colección        |
+| `/api/admin/upload-csv`                    | POST   | Sube un CSV y re-construye las derivadas  |
+| `/api/admin/documents/{collection}`        | GET    | Documentos paginados (`page`, `page_size`)|
+| `/api/admin/documents/{collection}/{id}`   | PUT    | Edición en vivo (`$set` de campos)        |
+| `/api/admin/documents/{collection}/{id}`   | DELETE | Borrar un documento                       |
+
+| Componente        | Datos que consume                  | Estado   |
+|-------------------|------------------------------------|----------|
+| CollectionCounts  | `collections`                      | ✅ Listo |
+| CsvUploader       | `upload-csv`                       | ✅ Listo |
+| DocumentTable     | `documents` (+ PUT/DELETE)         | ✅ Listo |
+
+## Testing
+
+Runner: **Vitest** + **@testing-library/react** sobre **jsdom**.
+
+```bash
+cd frontend
+npm run test         # corre toda la batería una vez
+npm run test:watch   # modo watch
+```
+
+Setup global en `src/test/setup.jsx`: registra los matchers de `jest-dom`,
+limpia el DOM entre tests, y mockea `react-leaflet` (jsdom no monta el mapa) y
+`fetch`. Los tests se enfocan en los componentes presentacionales (estados de
+carga / vacío / datos) y la navegación del shell.

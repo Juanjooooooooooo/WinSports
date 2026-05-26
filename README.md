@@ -65,6 +65,10 @@ uv run scripts/test_pipeline.py
 uv run scripts/verify_connection.py
 ```
 
+> Alternativa sin terminal: con el dashboard corriendo, la pestaña **Admin**
+> permite subir CSVs desde el navegador (re-construye las derivadas sola). Ver
+> [`docs/admin.md`](docs/admin.md).
+
 ### 4. Levantar el dashboard (dos terminales)
 
 ```bash
@@ -89,15 +93,40 @@ tocar CORS en desarrollo.
 | Overview | Total de reproducciones, usuarios únicos, contenido más visto, mapa de burbujas de usuarios activos, ranking de dispositivos y actividad por hora |
 | QoE      | Buffer promedio por contenido, tasa de re-buffering, tiempo de inicialización y ranking de eventos |
 | Usuarios | Perfiles (Heavy / Mid / Vague), funnel de retención, heatmap de actividad y completion por contenido |
+| Admin    | Cargar nuevos CSVs, conteo de documentos por colección y edición/borrado de documentos en vivo (ver [`docs/admin.md`](docs/admin.md)) |
+
+## Tests
+
+```bash
+# Backend (pytest, Mongo en memoria con mongomock + contrato de la API)
+uv run pytest
+
+# Frontend (Vitest + Testing Library sobre jsdom)
+cd frontend && npm run test
+```
+
+El backend cubre pipelines, parseo de CSV, repositorios y el contrato de todas
+las rutas (incluida Admin). El frontend cubre los componentes presentacionales y
+la navegación. Detalle del frontend en [`docs/frontend.md`](docs/frontend.md#testing).
 
 ## Estructura
 
 ```
-api/          FastAPI: routes + schemas
+api/          FastAPI: routes (overview · qoe · users · admin) + schemas
 config/       settings (.env) + constantes (colecciones, centroides de países)
-db/           connection · collections (validators) · indexes · pipelines · repositories
+db/           connection · collections (validators) · indexes · pipelines · repositories · csv_ingest
 scripts/      load_csv · test_pipeline · verify_connection
-frontend/     React + Vite (src/pages, src/components, src/styles)
-docs/         arquitectura, colecciones, scripts y frontend
+frontend/     React + Vite (src/pages, src/components, src/styles, src/test)
+tests/        pytest: db/ (pipelines, csv, repos) · api/ (contrato, admin)
+docs/         arquitectura · colecciones · scripts · frontend · endpoints · admin
 data/         CSVs de eventos
 ```
+
+## Documentación
+
+- [`docs/architecture.md`](docs/architecture.md) — diseño, capas y decisiones
+- [`docs/collections.md`](docs/collections.md) — colecciones, índices, validators
+- [`docs/endpoints.md`](docs/endpoints.md) — referencia completa de la API
+- [`docs/admin.md`](docs/admin.md) — panel de administración
+- [`docs/frontend.md`](docs/frontend.md) — React, páginas, componentes y tests
+- [`docs/scripts.md`](docs/scripts.md) — `load_csv` y `test_pipeline`

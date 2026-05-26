@@ -13,5 +13,13 @@ export default defineConfig(({ mode }) => {
         "/api": env.API_BASE_URL || "http://localhost:8000",
       },
     },
+    test: {
+      globals: true,
+      environment: "jsdom",
+      setupFiles: "./src/test/setup.jsx",
+      // No procesamos CSS en tests (leaflet.css, theme.css) — irrelevante para
+      // las aserciones y evita que jsdom intente parsear hojas de estilo.
+      css: false,
+    },
   };
 });

@@ -50,9 +50,19 @@ db/collections/   validators + índices + setup de cada colección
 db/indexes/       definición de índices (importados por collections)
 db/pipelines/     lógica de construcción de colecciones derivadas
 db/repositories/  queries hacia Mongo (una función por operación)
+db/csv_ingest.py  parseo/ingesta de CSV (compartido por el script y el admin)
 api/schemas/      modelos Pydantic — forma del JSON que recibe React
 api/routes/       endpoints FastAPI — une repositories con schemas
 ```
+
+## Panel de administración
+
+La pestaña **Admin** (rutas `/api/admin/*`, repo `db/repositories/admin.py`)
+permite al equipo gestionar datos sin tocar Mongo: cargar nuevos CSVs, ver el
+conteo de documentos y editar/borrar en vivo. La carga de CSV reusa la misma
+lógica de parseo del script CLI (`db/csv_ingest.py`) y, tras insertar, re-construye
+`sessions` y `content_stats` llamando a los mismos pipelines. Detalle en
+[`admin.md`](admin.md).
 ## Decisiones que se tomaron conscientemente
 
 **Change streams en vez de recalcular en cada request** — con 2M+ de eventos,

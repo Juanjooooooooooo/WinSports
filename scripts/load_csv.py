@@ -4,7 +4,6 @@ import argparse
 import asyncio
 import math
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -20,79 +19,16 @@ from config.constants import COLLECTION_EVENTS
 from config.settings import settings
 from db.collections.events import setup_events_collection
 
-BATCH_SIZE = 1_000
-
-
-def _to_str(val):
-    if val is None or (isinstance(val, float) and math.isnan(val)):
-        return None
-    s = str(val).strip()
-    return s or None
-
-
-def _to_int(val):
-    if val is None or (isinstance(val, float) and math.isnan(val)):
-        return None
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        # El CSV trae enteros como "2023.0" → castear vía float primero
-        try:
-            return int(float(val))
-        except (ValueError, TypeError):
-            return None
-
-
-def _to_float(val):
-    if val is None or (isinstance(val, float) and math.isnan(val)):
-        return None
-    try:
-        return float(val)
-    except (ValueError, TypeError):
-        return None
-
-
-def _to_date(val):
-    if not val or (isinstance(val, float) and math.isnan(val)):
-        return None
-    try:
-        return datetime.strptime(str(val).strip(), "%Y-%m-%d %H:%M:%S").replace(
-            tzinfo=timezone.utc
-        )
-    except (ValueError, TypeError):
-        return None
-
-
-def parse_row(row: dict) -> dict:
-    """
-    Mapea una fila del CSV a un documento de la colección `events`.
-    Los NaN de pandas se convierten en None; los tipos se castean al
-    bsonType que espera el validator de events.py.
-    """
-    return {
-        "date": _to_date(row.get("Date")),
-        "country_code": _to_str(row.get("CountryCode")),
-        "subscriber_id": _to_str(row.get("SubscriberID")),
-        "customer_id": _to_str(row.get("CustomerId")),
-        "content_type": _to_str(row.get("ContentType")),
-        "title": _to_str(row.get("Title")),
-        "episode": _to_int(row.get("Episode")),
-        "series_title": _to_str(row.get("SeriesTitle")),
-        "release_year": _to_int(row.get("ReleaseYear")),
-        "duration": _to_int(row.get("Duration")),
-        "season": _to_int(row.get("Season")),
-        "genres": _to_str(row.get("Genres")),
-        "device_type": _to_str(row.get("DeviceType")),
-        "type_event": _to_str(row.get("TypeEvent")),
-        "position": _to_int(row.get("Position")),
-        "language": _to_str(row.get("Language")),
-        "bitrate": _to_int(row.get("Bitrate")),
-        "buffer_time": _to_float(row.get("BufferTime")),
-        "playback_net_time": _to_int(row.get("PlaybackNetTime")),
-        "device_description": _to_str(row.get("deviceDescription")),
-        "calc_program_type": _to_str(row.get("CALC_ProgramType")),
-        "calc_bitrate_type": _to_str(row.get("CALC_BitrateType")),
-    }
+# La lógica de parseo vive en db/csv_ingest.py para compartirla con el endpoint
+# de admin. Se re-exporta aquí para no romper imports existentes (tests, etc.).
+from db.csv_ingest import (  # noqa: F401
+    BATCH_SIZE,
+    _to_date,
+    _to_float,
+    _to_int,
+    _to_str,
+    parse_row,
+)
 
 
 async def main(csv_path: str, hard: bool) -> None:
