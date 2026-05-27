@@ -3,10 +3,17 @@ import { useState } from "react";
 import Overview from "./pages/Overview";
 import QoE from "./pages/QoE";
 import Users from "./pages/Users";
+import Alerts from "./pages/Alerts";
 import Admin from "./pages/Admin";
 
 const PAGES = ["Overview", "QoE", "Usuarios", "Alertas", "Admin"];
-const IMPLEMENTED = new Set(["Overview", "QoE", "Usuarios", "Admin"]);
+const IMPLEMENTED = new Set([
+  "Overview",
+  "QoE",
+  "Usuarios",
+  "Alertas",
+  "Admin",
+]);
 
 export default function App() {
   const [activePage, setActivePage] = useState("Overview");
@@ -100,6 +107,7 @@ export default function App() {
         {activePage === "QoE" && <QoE />}
         {activePage === "Usuarios" && <Users />}
         {activePage === "Admin" && <Admin />}
+        {activePage === "Alertas" && <Alerts />}
         {!IMPLEMENTED.has(activePage) && (
           <div
             style={{

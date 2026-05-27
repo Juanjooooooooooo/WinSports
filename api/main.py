@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes.admin import router as admin_router
+from api.routes.alerts import router as alerts_router
 from api.routes.overview import router as overview_router
 from api.routes.qoe import router as qoe_router
 from api.routes.users import router as users_router
@@ -74,4 +75,5 @@ async def health():
 app.include_router(overview_router)
 app.include_router(qoe_router)
 app.include_router(users_router)
+app.include_router(alerts_router)
 app.include_router(admin_router)
