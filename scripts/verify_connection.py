@@ -2,6 +2,14 @@
 import asyncio
 import sys
 
+# La consola de Windows usa cp1252 por defecto y revienta al imprimir emojis
+# (✅, —, etc.). Forzamos UTF-8 en stdout/stderr para que el script no falle.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
+
 sys.path.insert(0, ".")  # para que encuentre los módulos desde la raíz
 
 from db.connection import connect, disconnect, get_db

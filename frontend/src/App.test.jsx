@@ -39,11 +39,13 @@ describe("App (navegación)", () => {
     expect(screen.getByRole("heading", { name: "QoE" })).toBeInTheDocument();
   });
 
-  it("muestra 'en construcción' para páginas no implementadas", async () => {
+  it("navega a Alertas al hacer clic en su botón del sidebar", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: "Alertas" }));
-    expect(screen.getByText(/en construcción/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Alertas" })
+    ).toBeInTheDocument();
   });
 });
