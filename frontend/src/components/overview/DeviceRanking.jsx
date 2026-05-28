@@ -48,7 +48,7 @@ export default function DeviceRanking({ data }) {
           Cargando...
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={180}>
+        <ResponsiveContainer width="100%" height="85%">
           <BarChart
             data={data}
             layout="vertical"
