@@ -93,8 +93,8 @@ export default function UsersMap() {
                 center={[p.lat, p.lon]}
                 radius={radiusFor(p.sessions)}
                 pathOptions={{
-                  color: "#FF6B00",
-                  fillColor: "#FF6B00",
+                  color: "#FF5500",
+                  fillColor: "#FF5500",
                   fillOpacity: 0.45,
                   weight: 1,
                 }}

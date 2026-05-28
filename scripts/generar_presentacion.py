@@ -1,7 +1,7 @@
 """
 Generador de la presentación .pptx de WinSports.
 
-Identidad de marca Win Sports: rojo (#E30613), negro y blanco.
+Identidad de marca Win Sports: naranja (#ff5500), negro y blanco.
 Estructura: portada → LEGAL DISCLAIMER → agenda → 21 secciones → cierre.
 
 Uso:
@@ -30,8 +30,10 @@ CODE_BG = RGBColor(0x05, 0x05, 0x05)      # cajas de código
 BORDER = RGBColor(0x2D, 0x2D, 0x2D)
 BORDER_2 = RGBColor(0x42, 0x42, 0x42)
 
-RED = RGBColor(0xE3, 0x06, 0x13)          # rojo Win Sports
-RED_DEEP = RGBColor(0xA0, 0x04, 0x10)
+# Acento corporativo (naranja). Se mantienen los nombres RED/RED_DEEP porque
+# se referencian en todo el deck; ahora portan el naranja institucional.
+RED = RGBColor(0xFF, 0x55, 0x00)          # naranja corporativo Win Sports
+RED_DEEP = RGBColor(0xCC, 0x44, 0x00)     # naranja oscuro (variante dim)
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 TEXT = RGBColor(0xFA, 0xFA, 0xFA)
 TEXT_DIM = RGBColor(0x9E, 0x9E, 0x9E)
@@ -42,6 +44,7 @@ SUCCESS = RGBColor(0x4C, 0xAF, 0x82)
 WARNING = RGBColor(0xD4, 0xAC, 0x0D)
 AMBER = RGBColor(0xE6, 0x7E, 0x22)
 INFO = RGBColor(0x4A, 0x9E, 0xFF)
+ALERT_RED = RGBColor(0xE3, 0x06, 0x13)    # rojo real, solo para la alerta "ROJA"
 ACCENT = RED                              # alias semántico
 
 SLIDE_W = Cm(33.867)  # 16:9
@@ -1111,7 +1114,7 @@ def slide_alertas(prs, total, page):
 
     levels = [
         ("ROJA  ·  Buffer crítico",
-         RED,
+         ALERT_RED,
          [
              "Sesión con total_buffer_time > 15 segundos",
              "En la ventana [earliest_event, latest_event]",

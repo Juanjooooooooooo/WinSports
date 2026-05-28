@@ -51,8 +51,8 @@ export default function ActivityTimeline({ data }) {
           <AreaChart data={data} margin={{ left: -16, right: 8 }}>
             <defs>
               <linearGradient id="activityGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#FF6B00" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#FF6B00" stopOpacity={0} />
+                <stop offset="5%" stopColor="#FF5500" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#FF5500" stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis
@@ -82,7 +82,7 @@ export default function ActivityTimeline({ data }) {
             <Area
               type="monotone"
               dataKey="sessions"
-              stroke="#FF6B00"
+              stroke="#FF5500"
               strokeWidth={2}
               fill="url(#activityGradient)"
             />
