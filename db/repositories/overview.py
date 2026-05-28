@@ -13,8 +13,9 @@ from config.constants import (
 
 
 async def get_unique_users(db: AsyncIOMotorDatabase) -> int:
-    result = await db[COLLECTION_SESSIONS].distinct("subscriber_id")
-    return len(result)
+    pipeline = [{"$group": {"_id": "$subscriber_id"}}, {"$count": "total"}]
+    result = await db[COLLECTION_SESSIONS].aggregate(pipeline).to_list(length=1)
+    return result[0]["total"] if result else 0
 
 
 async def get_total_plays(db: AsyncIOMotorDatabase) -> int:

@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo import UpdateOne
 
 from config.constants import COLLECTION_SESSIONS, COLLECTION_STATS
 
@@ -110,20 +111,15 @@ async def build_content_stats_from_db(db: AsyncIOMotorDatabase) -> dict:
 
     docs = _build_content_stats(sessions)
 
-    upserted = 0
-    modified = 0
+    operations = [
+        UpdateOne({"customer_id": doc["customer_id"]}, {"$set": doc}, upsert=True)
+        for doc in docs
+    ]
 
-    for doc in docs:
-        result = await db[COLLECTION_STATS].update_one(
-            {"customer_id": doc["customer_id"]}, {"$set": doc}, upsert=True
-        )
-        if result.upserted_id:
-            upserted += 1
-        elif result.modified_count:
-            modified += 1
+    result = await db[COLLECTION_STATS].bulk_write(operations, ordered=False)
 
     return {
         "processed": len(docs),
-        "upserted": upserted,
-        "modified": modified,
+        "upserted": result.upserted_count,
+        "modified": result.modified_count,
     }

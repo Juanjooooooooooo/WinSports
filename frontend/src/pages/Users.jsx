@@ -16,7 +16,7 @@ export default function Users() {
       .then((r) => r.json())
       .then((d) => setHeatmap(d.activity));
 
-    fetch("/api/users/content-completion-ranking?min_plays=1")
+    fetch("/api/users/content-completion-ranking")
       .then((r) => r.json())
       .then((d) => setCompletion(d));
 

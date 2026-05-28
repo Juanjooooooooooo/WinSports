@@ -2,6 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 import AlertsCounter from "../components/alerts/AlertsCounter";
 import AlertsTable from "../components/alerts/AlertsTable";
 
+const formatDate = (ts) =>
+  new Date(ts).toLocaleDateString("es-CO", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
 export default function Alerts() {
   const [data, setData] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
@@ -32,7 +39,9 @@ export default function Alerts() {
         }}
       >
         <p style={{ fontSize: "13px", color: "var(--color-text-muted)" }}>
-          Monitoreo en tiempo real — ventana de 1 hora
+          {data
+            ? `Período analizado: ${formatDate(data.period_start)} — ${formatDate(data.period_end)}`
+            : "Cargando período..."}
         </p>
         {lastUpdate && (
           <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>

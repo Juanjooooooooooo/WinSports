@@ -21,3 +21,5 @@ class AlertsResponse(BaseModel):
     total_red: int
     total_yellow: int
     total_blue: int
+    period_start: datetime
+    period_end: datetime

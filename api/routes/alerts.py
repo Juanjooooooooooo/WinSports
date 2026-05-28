@@ -10,11 +10,13 @@ router = APIRouter(prefix="/api/alerts", tags=["Alerts"])
 
 @router.get("/", response_model=AlertsResponse)
 async def alerts(db: AsyncIOMotorDatabase = Depends(get_db)):
-    all_alerts = await get_all_alerts(db)
+    result = await get_all_alerts(db)
 
     return AlertsResponse(
-        alerts=all_alerts,
-        total_red=sum(1 for a in all_alerts if a["severity"] == "red"),
-        total_yellow=sum(1 for a in all_alerts if a["severity"] == "yellow"),
-        total_blue=sum(1 for a in all_alerts if a["severity"] == "blue"),
+        alerts=result["alerts"],
+        total_red=sum(1 for a in result["alerts"] if a["severity"] == "red"),
+        total_yellow=sum(1 for a in result["alerts"] if a["severity"] == "yellow"),
+        total_blue=sum(1 for a in result["alerts"] if a["severity"] == "blue"),
+        period_start=result["period_start"],
+        period_end=result["period_end"],
     )

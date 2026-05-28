@@ -5,17 +5,27 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from config.constants import COLLECTION_EVENTS, COLLECTION_SESSIONS
 
 
+async def _get_data_window(db) -> tuple:
+    latest = await db[COLLECTION_EVENTS].find_one(
+        {}, {"date": 1, "_id": 0}, sort=[("date", -1)]
+    )
+    earliest = await db[COLLECTION_EVENTS].find_one(
+        {}, {"date": 1, "_id": 0}, sort=[("date", 1)]
+    )
+    return earliest["date"], latest["date"]
+
+
 async def get_buffer_alerts(db: AsyncIOMotorDatabase) -> list[dict]:
     """
     Roja — sesiones donde total_buffer_time > 15s en la última hora.
     """
-    since = datetime.now(timezone.utc) - timedelta(hours=1)
+    start, end = await _get_data_window(db)
 
     cursor = (
         db[COLLECTION_SESSIONS]
         .find(
             {
-                "start_time": {"$gte": since},
+                "start_time": {"$gte": start, "$lte": end},
                 "total_buffer_time": {"$gt": 15},
             },
             {
@@ -51,10 +61,10 @@ async def get_rebuffer_rate_alerts(db: AsyncIOMotorDatabase) -> list[dict]:
     Amarilla — contenidos donde >30% de sesiones en la última hora
     tienen al menos 1 RE-BUFFERING.
     """
-    since = datetime.now(timezone.utc) - timedelta(hours=1)
+    start, end = await _get_data_window(db)
 
     pipeline = [
-        {"$match": {"start_time": {"$gte": since}}},
+        {"$match": {"start_time": {"$gte": start, "$lte": end}}},
         {
             "$group": {
                 "_id": "$customer_id",
@@ -75,7 +85,7 @@ async def get_rebuffer_rate_alerts(db: AsyncIOMotorDatabase) -> list[dict]:
                 "rate": {"$divide": ["$with_rebuffer", "$total"]},
             }
         },
-        {"$match": {"rate": {"$gt": 0.30}, "total": {"$gte": 3}}},
+        {"$match": {"rate": {"$gt": 0.30}, "total": {"$gte": 10}}},
         {"$sort": {"rate": -1}},
     ]
 
@@ -88,7 +98,7 @@ async def get_rebuffer_rate_alerts(db: AsyncIOMotorDatabase) -> list[dict]:
             "description": f"{r['title'] or r['customer_id']} — {round(r['rate'] * 100, 1)}% de sesiones con re-buffering",
             "customer_id": r["customer_id"],
             "total_sessions": r["total"],
-            "timestamp": since,
+            "timestamp": start,
         }
         for r in results
     ]
@@ -98,7 +108,7 @@ async def get_pause_storm_alerts(db: AsyncIOMotorDatabase) -> list[dict]:
     """
     Azul — usuarios con >5 PAUSEs en menos de 8 minutos en una misma sesión.
     """
-    since = datetime.now(timezone.utc) - timedelta(hours=1)
+    start, end = await _get_data_window(db)
     window = timedelta(minutes=8)
 
     cursor = (
@@ -106,7 +116,7 @@ async def get_pause_storm_alerts(db: AsyncIOMotorDatabase) -> list[dict]:
         .find(
             {
                 "type_event": "PAUSE",
-                "date": {"$gte": since},
+                "date": {"$gte": start, "$lte": end},
             },
             {"_id": 0, "subscriber_id": 1, "customer_id": 1, "date": 1, "title": 1},
         )
@@ -144,11 +154,13 @@ async def get_pause_storm_alerts(db: AsyncIOMotorDatabase) -> list[dict]:
     return alerts
 
 
-async def get_all_alerts(db: AsyncIOMotorDatabase) -> list[dict]:
+async def get_all_alerts(db: AsyncIOMotorDatabase) -> dict:
     """
     Combina las tres alertas ordenadas por severidad y timestamp.
     """
     severity_order = {"red": 0, "yellow": 1, "blue": 2}
+
+    start, end = await _get_data_window(db)
 
     buffer_alerts = await get_buffer_alerts(db)
     rebuffer_alerts = await get_rebuffer_rate_alerts(db)
@@ -157,4 +169,8 @@ async def get_all_alerts(db: AsyncIOMotorDatabase) -> list[dict]:
     all_alerts = buffer_alerts + rebuffer_alerts + pause_alerts
     all_alerts.sort(key=lambda a: (severity_order[a["severity"]], a["timestamp"]))
 
-    return all_alerts
+    return {
+        "alerts": all_alerts,
+        "period_start": start,
+        "period_end": end,
+    }

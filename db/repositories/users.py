@@ -65,7 +65,7 @@ async def get_activity_heatmap(db: AsyncIOMotorDatabase) -> list[dict]:
 
 
 async def get_content_completion_ranking(
-    db: AsyncIOMotorDatabase, min_plays: int = 5
+    db: AsyncIOMotorDatabase, min_plays: int = 10
 ) -> dict:
     pipeline = [
         # Agrupar por title, sumando plays y promediando completion_rate

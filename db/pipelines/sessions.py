@@ -3,6 +3,7 @@
 from collections import defaultdict
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo import UpdateOne
 
 from config.constants import COLLECTION_EVENTS, COLLECTION_SESSIONS
 
@@ -110,67 +111,65 @@ def _build_sessions(events: list[dict]) -> list[dict]:
 
 
 async def build_sessions_from_db(db: AsyncIOMotorDatabase) -> dict:
-    """
-    Lee todos los eventos desde Mongo, construye sesiones,
-    y hace upsert en la colección sessions.
+    total_processed = 0
+    total_upserted = 0
+    total_modified = 0
 
-    Retorna un resumen: cuántas sesiones procesadas, insertadas, actualizadas.
-    """
-    # Leer todos los eventos ordenados
-    cursor = (
-        db[COLLECTION_EVENTS]
-        .find(
-            {},
-            {
-                # Solo los campos que necesitamos — menos memoria
-                "subscriber_id": 1,
-                "customer_id": 1,
-                "date": 1,
-                "type_event": 1,
-                "device_type": 1,
-                "country_code": 1,
-                "title": 1,
-                "series_title": 1,
-                "content_type": 1,
-                "genres": 1,
-                "duration": 1,
-                "position": 1,
-                "buffer_time": 1,
-                "calc_bitrate_type": 1,
-                "_id": 0,
-            },
+    # Obtener todos los (subscriber_id, customer_id) únicos
+    pairs = await db[COLLECTION_EVENTS].distinct("subscriber_id")
+
+    # Procesar por subscriber_id para mantener sesiones coherentes
+    for subscriber_id in pairs:
+        events = (
+            await db[COLLECTION_EVENTS]
+            .find(
+                {"subscriber_id": subscriber_id},
+                {
+                    "subscriber_id": 1,
+                    "customer_id": 1,
+                    "date": 1,
+                    "type_event": 1,
+                    "device_type": 1,
+                    "country_code": 1,
+                    "title": 1,
+                    "series_title": 1,
+                    "content_type": 1,
+                    "genres": 1,
+                    "duration": 1,
+                    "position": 1,
+                    "buffer_time": 1,
+                    "calc_bitrate_type": 1,
+                    "_id": 0,
+                },
+            )
+            .sort("date", 1)
+            .to_list(length=None)
         )
-        .sort([("subscriber_id", 1), ("customer_id", 1), ("date", 1)])
-    )
 
-    events = await cursor.to_list(length=None)
+        sessions = _build_sessions(events)
+        if not sessions:
+            continue
 
-    if not events:
-        return {"processed": 0, "upserted": 0, "modified": 0}
+        operations = [
+            UpdateOne(
+                {
+                    "subscriber_id": s["subscriber_id"],
+                    "customer_id": s["customer_id"],
+                    "start_time": s["start_time"],
+                },
+                {"$set": s},
+                upsert=True,
+            )
+            for s in sessions
+        ]
 
-    sessions = _build_sessions(events)
-
-    # Upsert por clave única (subscriber_id + customer_id + start_time)
-    upserted = 0
-    modified = 0
-
-    for session in sessions:
-        result = await db[COLLECTION_SESSIONS].update_one(
-            {
-                "subscriber_id": session["subscriber_id"],
-                "customer_id": session["customer_id"],
-                "start_time": session["start_time"],
-            },
-            {"$set": session},
-            upsert=True,
-        )
-        if result.upserted_id:
-            upserted += 1
-        elif result.modified_count:
-            modified += 1
+        result = await db[COLLECTION_SESSIONS].bulk_write(operations, ordered=False)
+        total_processed += len(sessions)
+        total_upserted += result.upserted_count
+        total_modified += result.modified_count
 
     return {
-        "processed": len(sessions),
-        "upserted": upserted,
-        "modified": modified,
+        "processed": total_processed,
+        "upserted": total_upserted,
+        "modified": total_modified,
     }
