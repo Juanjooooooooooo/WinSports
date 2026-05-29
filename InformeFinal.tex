@@ -1,0 +1,1129 @@
+\documentclass[12pt, letterpaper]{article}
+
+% ============================================================
+%  Paquetes
+% ============================================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noshorthands]{babel}
+\usepackage[letterpaper,margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{listings}
+\usepackage{amssymb}
+\usepackage[hidelinks,colorlinks=true,linkcolor=winorange,urlcolor=winorange,citecolor=winorange]{hyperref}
+
+% ============================================================
+%  Estilo
+% ============================================================
+\definecolor{winorange}{HTML}{FF6B00}
+\definecolor{windark}{HTML}{1A1A1A}
+\definecolor{codebg}{HTML}{F5F5F5}
+\definecolor{codegray}{HTML}{6A737D}
+\definecolor{codekw}{HTML}{C7361B}
+\definecolor{codestr}{HTML}{1A7F37}
+
+\titleformat{\section}{\Large\bfseries\color{windark}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\color{winorange}}{\thesubsection}{1em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\textcolor{windark}{WinSports}}
+\rhead{\textcolor{codegray}{Informe Final}}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstdefinestyle{winstyle}{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{codekw}\bfseries,
+  stringstyle=\color{codestr},
+  commentstyle=\color{codegray}\itshape,
+  numberstyle=\tiny\color{codegray},
+  numbers=left,
+  numbersep=8pt,
+  breaklines=true,
+  showstringspaces=false,
+  frame=single,
+  rulecolor=\color{codegray!40},
+  tabsize=2,
+  captionpos=b,
+  literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+           {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+           {ñ}{{\~n}}1 {Ñ}{{\~N}}1 {¿}{{?`}}1 {¡}{{!`}}1
+}
+\lstset{style=winstyle}
+
+% Comando corto para identificadores en línea
+\newcommand{\code}[1]{\texttt{#1}}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+% ============================================================
+%  Portada
+% ============================================================
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{2cm}
+  {\color{winorange}\rule{\linewidth}{2pt}}\\[0.6cm]
+  {\Huge\bfseries WinSports\par}
+  \vspace{0.3cm}
+  {\LARGE Plataforma de Analítica de Streaming Deportivo\par}
+  \vspace{0.2cm}
+  {\large Procesamiento de eventos de reproducción sobre MongoDB Atlas,\\
+   API en FastAPI y dashboard en React\par}
+  {\color{winorange}\rule{\linewidth}{2pt}}\\[1.5cm]
+
+  {\large\bfseries Informe Final\par}
+  \vspace{0.4cm}
+  {\large Ingeniería de Datos\par}
+  \vspace{2.5cm}
+
+  \begin{tabular}{rl}
+    \textbf{Autor:} & Juan José Castillo \\[4pt]
+    \textbf{Stack:} & MongoDB Atlas $\cdot$ FastAPI $\cdot$ React 19 \\[4pt]
+    \textbf{Versión:} & 0.1.0 \\[4pt]
+    \textbf{Fecha:} & Mayo de 2026 \\
+  \end{tabular}
+
+  \vfill
+  {\color{codegray}\small Win Sports — plataforma colombiana de streaming deportivo\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{Resumen}
+% ============================================================
+WinSports es un sistema de analítica construido sobre los eventos de
+reproducción de \textbf{Win Sports}, plataforma colombiana de streaming
+deportivo. El sistema ingiere registros crudos de eventos
+(\code{START}, \code{BUFFERING}, \code{PAUSE}, \code{COMPLETE}, etc.) desde
+archivos CSV hacia \textbf{MongoDB Atlas}, los transforma en colecciones
+derivadas mediante un pipeline de agregación, y los expone a través de una
+\textbf{API REST en FastAPI} consumida por un \textbf{dashboard interactivo en
+React}.
+
+El núcleo del diseño es un modelo de datos de tres niveles
+(\code{events} $\rightarrow$ \code{sessions} $\rightarrow$ \code{content\_stats})
+que separa la fuente de verdad inmutable de las vistas precalculadas que
+alimentan el tablero. Sobre esa base, el dashboard ofrece cuatro perspectivas
+analíticas —\emph{Overview}, \emph{QoE} (calidad de experiencia),
+\emph{Usuarios} y \emph{Admin}—, además de un módulo de \emph{Alertas}
+operativas. El proyecto incluye una suite de pruebas en backend (pytest con
+Mongo en memoria) y frontend (Vitest + Testing Library).
+
+% ============================================================
+\section{Introducción}
+% ============================================================
+\subsection{Contexto y motivación}
+Cada vez que un usuario reproduce contenido en una plataforma de streaming, el
+reproductor emite una secuencia de eventos: el inicio de la reproducción, los
+episodios de \emph{buffering}, las pausas, los hitos de progreso (primer
+cuartil, mitad, tercer cuartil) y la finalización. Analizar este flujo permite
+responder preguntas de negocio clave: ¿qué contenido se consume más?,
+¿qué tan buena es la calidad de reproducción?, ¿en qué punto los usuarios
+abandonan un contenido?, ¿qué dispositivos predominan?
+
+Estos datos presentan dos características que condicionan el diseño:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Esquema flexible.} No todos los eventos traen los mismos campos:
+        \code{buffer\_time} solo aparece en eventos de buffering;
+        \code{episode} y \code{season} solo en series. Forzar un esquema rígido
+        relacional generaría una proliferación de valores nulos.
+  \item \textbf{Alto volumen.} En producción, los eventos llegarían como flujo
+        en vivo, alcanzando un orden de magnitud de $\sim$100M de documentos.
+        La arquitectura debe escalar horizontalmente sin rediseñarse.
+\end{itemize}
+
+Por estas razones se eligió \textbf{MongoDB}, una base de datos documental que
+maneja naturalmente el esquema flexible y escala horizontalmente vía
+\emph{sharding}.
+
+\subsection{Objetivos}
+\begin{enumerate}[leftmargin=*]
+  \item Diseñar un modelo de datos documental que separe la captura cruda de
+        eventos de las métricas analíticas precalculadas.
+  \item Implementar un pipeline reproducible que transforme un CSV de eventos
+        en colecciones derivadas listas para consulta.
+  \item Exponer las métricas mediante una API REST con contratos bien definidos
+        y validados.
+  \item Construir un dashboard que comunique las métricas de forma visual e
+        interactiva a un equipo no técnico.
+  \item Garantizar la idempotencia de la carga y la corrección mediante pruebas
+        automatizadas.
+\end{enumerate}
+
+% ============================================================
+\section{Metodología y requisitos}
+% ============================================================
+\subsection{Enfoque de desarrollo}
+El sistema se construyó de forma \textbf{iterativa e incremental}, en cortes
+verticales: cada métrica del dashboard se llevó de extremo a extremo (índice y
+consulta en la base de datos $\rightarrow$ repositorio $\rightarrow$ esquema y
+ruta de la API $\rightarrow$ componente de React) antes de pasar a la siguiente.
+Este enfoque mantuvo el sistema funcional en todo momento y permitió validar el
+contrato entre capas de forma temprana. El control de versiones se gestionó con
+Git, y las dependencias con \code{uv} (backend) y \code{npm} (frontend).
+
+\subsection{Requisitos funcionales}
+\begin{center}
+\begin{tabular}{@{}lL{10cm}@{}}
+\toprule
+\textbf{ID} & \textbf{Requisito} \\
+\midrule
+RF1 & Ingerir un CSV de eventos y persistirlo en la colección \code{events}. \\
+RF2 & Derivar automáticamente \code{sessions} y \code{content\_stats} a partir de los eventos. \\
+RF3 & Exponer métricas de portada (reproducciones, usuarios, contenido, dispositivos, mapa). \\
+RF4 & Exponer métricas de calidad de experiencia (buffer, re-buffering, tiempo de inicio). \\
+RF5 & Exponer métricas de comportamiento (funnel, heatmap, perfiles, completitud). \\
+RF6 & Detectar y reportar alertas operativas por severidad. \\
+RF7 & Permitir la gestión de datos (carga, conteo, edición y borrado) desde un panel. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Requisitos no funcionales}
+\begin{center}
+\begin{tabular}{@{}lL{10cm}@{}}
+\toprule
+\textbf{ID} & \textbf{Requisito} \\
+\midrule
+RNF1 & \textbf{Idempotencia}: re-cargar el mismo CSV no debe duplicar datos. \\
+RNF2 & \textbf{Escalabilidad horizontal} hacia el orden de $\sim$100M de documentos. \\
+RNF3 & \textbf{Tolerancia a fallos} en la carga masiva (un documento inválido no detiene el lote). \\
+RNF4 & \textbf{Modularidad}: la API nunca accede a Mongo directamente; el front solo consume REST. \\
+RNF5 & \textbf{Privacidad}: no exponer identificadores completos de suscriptor en respuestas públicas. \\
+RNF6 & \textbf{Respuesta interactiva}: consultas del dashboard servidas desde vistas precalculadas. \\
+RNF7 & \textbf{Verificabilidad}: cobertura de pruebas en backend y frontend. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ============================================================
+\section{Arquitectura del sistema}
+% ============================================================
+El sistema se organiza en capas con responsabilidades estrictamente separadas.
+La API nunca accede a MongoDB directamente: toda consulta pasa por la capa de
+repositorios. El frontend solo consume la API REST. Esta modularidad permite que
+base de datos, API y frontend evolucionen de forma independiente.
+
+\subsection{Stack tecnológico}
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Capa} & \textbf{Tecnología} \\
+\midrule
+Base de datos & MongoDB Atlas + Motor (driver asíncrono) \\
+API & FastAPI + Uvicorn + Pydantic v2 \\
+Frontend & React 19 + Vite + Recharts + Leaflet \\
+Entorno backend & Python 3.14 + uv \\
+Entorno frontend & Node.js 18+ \\
+Pruebas & pytest + mongomock-motor $\cdot$ Vitest + Testing Library \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Justificación: NoSQL frente a modelo relacional}
+La elección de una base de datos documental no es arbitraria; responde a la
+naturaleza del dato y a los requisitos no funcionales:
+
+\begin{center}
+\begin{tabular}{@{}L{3.2cm}L{5.3cm}L{5.3cm}@{}}
+\toprule
+\textbf{Criterio} & \textbf{Relacional (SQL)} & \textbf{Documental (MongoDB)} \\
+\midrule
+Esquema & Rígido; campos opcionales obligan a tablas dispersas o muchos \code{NULL}. & Flexible; cada evento lleva solo los campos que aplican. \\
+Escalado & Vertical, principalmente; \emph{sharding} complejo. & Horizontal nativo vía \emph{sharding}. \\
+Lectura analítica & \emph{Joins} costosos sobre tablas grandes. & Vistas materializadas (colecciones derivadas) sin \emph{joins}. \\
+Ingesta masiva & Validación estricta detiene lotes ante un error. & \code{validationAction: warn} permite degradar con gracia. \\
+Sincronización & Requiere triggers / ETL externo. & \emph{Change streams} nativos. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Separación de capas}
+La estructura del repositorio refleja directamente la arquitectura:
+
+\begin{lstlisting}[language=bash,caption={Organización por responsabilidades}]
+db/collections/   validators + indices + setup de cada coleccion
+db/indexes/       definicion de indices (importados por collections)
+db/pipelines/     logica de construccion de colecciones derivadas
+db/repositories/  queries hacia Mongo (una funcion por operacion)
+db/csv_ingest.py  parseo/ingesta de CSV (compartido por script y admin)
+api/schemas/      modelos Pydantic - forma del JSON que recibe React
+api/routes/       endpoints FastAPI - une repositories con schemas
+config/           settings (.env) + constantes (colecciones, centroides)
+frontend/         React + Vite (pages, components, layout, styles, test)
+\end{lstlisting}
+
+\subsection{Flujo de datos general}
+El dato recorre el sistema en un solo sentido, de la fuente cruda hacia las
+vistas agregadas:
+
+\begin{center}
+\fbox{\code{CSV}} $\rightarrow$ \fbox{\code{load\_csv.py}} $\rightarrow$
+\fbox{\code{events}} $\xrightarrow{\text{change stream}}$
+\fbox{\code{sessions}} $\xrightarrow{\text{change stream}}$
+\fbox{\code{content\_stats}} $\rightarrow$ \fbox{API} $\rightarrow$ \fbox{React}
+\end{center}
+
+En \textbf{desarrollo}, \code{load\_csv.py} inserta los eventos y
+\code{scripts/test\_pipeline.py} construye manualmente las colecciones
+derivadas. En \textbf{producción}, los \emph{change streams} de MongoDB mantienen
+\code{sessions} y \code{content\_stats} sincronizadas en tiempo real ante cada
+nuevo evento.
+
+% ============================================================
+\section{Conjunto de datos}
+% ============================================================
+\subsection{Origen y volumen}
+La fuente es un CSV de eventos de reproducción de Win Sports. El repositorio
+incluye dos archivos de muestra para desarrollo y pruebas:
+\code{data/50\_data.csv} (50 eventos) y \code{data/1000\_data.csv} (1.000
+eventos). El pipeline se validó además con cargas del orden de
+\textbf{cientos de miles de eventos} ($\sim$300k), confirmando que el modelo de
+colecciones derivadas sostiene el dashboard sin degradar los tiempos de
+respuesta.
+
+\subsection{Diccionario de datos}
+El CSV original trae 22 columnas. La función \code{parse\_row} en
+\code{db/csv\_ingest.py} las mapea a los campos del documento de \code{events},
+casteando cada una al \code{bsonType} esperado:
+
+\begin{center}
+\begin{longtable}{@{}lll@{}}
+\toprule
+\textbf{Columna CSV} & \textbf{Campo evento} & \textbf{Tipo} \\
+\midrule
+\endhead
+\code{Date} & \code{date} & date \\
+\code{CountryCode} & \code{country\_code} & string \\
+\code{SubscriberID} & \code{subscriber\_id} & string \\
+\code{CustomerId} & \code{customer\_id} & string \\
+\code{ContentType} & \code{content\_type} & string \\
+\code{Title} & \code{title} & string \\
+\code{Episode} & \code{episode} & int \\
+\code{SeriesTitle} & \code{series\_title} & string \\
+\code{ReleaseYear} & \code{release\_year} & int \\
+\code{Duration} & \code{duration} & int \\
+\code{Season} & \code{season} & int \\
+\code{Genres} & \code{genres} & string \\
+\code{DeviceType} & \code{device\_type} & string (enum) \\
+\code{TypeEvent} & \code{type\_event} & string \\
+\code{Position} & \code{position} & int \\
+\code{Language} & \code{language} & string \\
+\code{Bitrate} & \code{bitrate} & int \\
+\code{BufferTime} & \code{buffer\_time} & double \\
+\code{PlaybackNetTime} & \code{playback\_net\_time} & int \\
+\code{deviceDescription} & \code{device\_description} & string \\
+\code{CALC\_ProgramType} & \code{calc\_program\_type} & string \\
+\code{CALC\_BitrateType} & \code{calc\_bitrate\_type} & string \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\subsection{Catálogo de tipos de evento}
+El campo \code{type\_event} dirige toda la lógica de negocio. Los tipos
+relevantes son:
+
+\begin{center}
+\begin{tabular}{@{}lL{8.5cm}@{}}
+\toprule
+\textbf{Tipo} & \textbf{Significado} \\
+\midrule
+\code{START} & Inicia una reproducción (delimita el comienzo de una sesión). \\
+\code{START-BUFFERING} & Buffer previo al primer frame (mide el \emph{startup time}). \\
+\code{RE-BUFFERING} & Interrupción por buffer durante la reproducción. \\
+\code{PAUSE} & Pausa del usuario. \\
+\code{FIRSTQUARTILE} & Se alcanzó el 25\% del contenido. \\
+\code{MIDPOINT} & Se alcanzó el 50\% del contenido. \\
+\code{THIRDQUARTILE} & Se alcanzó el 75\% del contenido. \\
+\code{COMPLETE} & El contenido se vio hasta el final. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Ejemplo de filas crudas}
+\begin{lstlisting}[language=bash,caption={Dos eventos del CSV (cabecera abreviada)}]
+Date,CountryCode,SubscriberID,CustomerId,...,DeviceType,TypeEvent,Position,...,BufferTime,...
+2026-01-01 08:58:00,CO,0d16...20a9,6955...de75,...,WEB,START,0,...,,...
+2026-01-01 08:58:05,CO,0d16...20a9,6955...de75,...,WEB,START-BUFFERING,0,...,6.805,...
+\end{lstlisting}
+
+Nótese que \code{BufferTime} solo viene poblado en el evento de buffering: ese es
+exactamente el tipo de esquema flexible que motiva el uso de MongoDB.
+
+% ============================================================
+\section{Modelo de datos}
+% ============================================================
+El modelo se compone de tres colecciones con responsabilidades separadas. Cada
+colección downstream es una vista materializada de la anterior, lo que evita
+recalcular agregaciones costosas en cada petición del dashboard.
+
+\subsection{Colección \code{events} — fuente de verdad}
+Almacena un documento por cada evento del CSV. Es un \emph{log} crudo,
+inmutable: nunca se modifica tras la inserción. Su validador
+(\code{\$jsonSchema}) exige cinco campos obligatorios y deja el resto
+opcional, respetando el esquema flexible de los eventos de streaming.
+
+\begin{center}
+\begin{tabular}{@{}lL{8.5cm}@{}}
+\toprule
+\textbf{Campo} & \textbf{Descripción} \\
+\midrule
+\code{date} & Fecha-hora del evento (obligatorio, \code{bsonType: date}). \\
+\code{subscriber\_id} & Identificador del suscriptor (obligatorio). \\
+\code{customer\_id} & Identificador de la pieza de contenido (obligatorio). \\
+\code{type\_event} & Tipo de evento: \code{START}, \code{PAUSE}, \code{COMPLETE}, etc. (obligatorio). \\
+\code{device\_type} & Plataforma: \code{ANDR}, \code{IOS} o \code{WEB} (obligatorio, \emph{enum}). \\
+\code{buffer\_time} & Tiempo de buffer; solo en eventos de buffering. \\
+\code{episode}, \code{season} & Solo en contenido tipo episodio/serie. \\
+\code{position} & Posición de reproducción, en segundos. \\
+\code{country\_code} & Código de país (alimenta el mapa de usuarios). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Validación.} El validador usa \code{validationAction: "warn"} en
+lugar de \code{"error"}: durante una carga masiva, un documento con un campo
+inesperado no debe detener la inserción de millones de filas; el problema se
+registra sin interrumpir el proceso. Los enteros aceptan
+\code{["int", "long"]} porque \code{bitrate} y \code{position} pueden superar el
+rango de \code{int32} en el dataset completo.
+
+\begin{lstlisting}[language=Python,caption={Documento de ejemplo en \code{events}}]
+{
+  "date": ISODate("2026-01-01T08:58:05Z"),
+  "country_code": "CO",
+  "subscriber_id": "0d1687a8...390020a9",
+  "customer_id": "69553fe8c788eafebe63de75",
+  "content_type": "MOVIE",
+  "title": "PARTIDO APARTE",
+  "duration": 3540,
+  "device_type": "WEB",
+  "type_event": "START-BUFFERING",
+  "position": 0,
+  "buffer_time": 6.805,
+  "calc_bitrate_type": "HIGH"
+}
+\end{lstlisting}
+
+\subsection{Colección \code{sessions} — derivada de events}
+Una \emph{sesión} agrupa todos los eventos de un par
+(\code{subscriber\_id}, \code{customer\_id}) entre un \code{START} y el
+siguiente \code{START}. Precalcula las métricas de progreso y calidad para no
+recalcularlas sobre el conjunto completo de eventos en cada consulta.
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Clave única:} \code{subscriber\_id + customer\_id + start\_time}.
+  \item \textbf{Progreso:} \code{reached\_firstquartile / midpoint /
+        thirdquartile / complete} (booleanos del funnel), \code{completion\_pct},
+        \code{max\_position}.
+  \item \textbf{Calidad (QoE):} \code{total\_buffer\_time}, \code{rebuffer\_count},
+        \code{pause\_count}, \code{dominant\_bitrate\_type}.
+\end{itemize}
+
+\begin{lstlisting}[language=Python,caption={Documento de ejemplo en \code{sessions}}]
+{
+  "subscriber_id": "0d1687a8...390020a9",
+  "customer_id": "69553fe8c788eafebe63de75",
+  "start_time": ISODate("2026-01-01T08:58:00Z"),
+  "end_time": ISODate("2026-01-01T09:55:00Z"),
+  "device_type": "WEB",
+  "duration": 3540,
+  "total_buffer_time": 6.805,
+  "rebuffer_count": 0,
+  "pause_count": 1,
+  "max_position": 3120,
+  "completion_pct": 88.14,
+  "reached_firstquartile": true,
+  "reached_midpoint": true,
+  "reached_thirdquartile": true,
+  "reached_complete": false,
+  "event_count": 7
+}
+\end{lstlisting}
+
+\subsection{Colección \code{content\_stats} — derivada de sessions}
+Un documento por \code{customer\_id} (pieza de contenido), con métricas
+agregadas que alimentan directamente los rankings del dashboard.
+Importante: \code{customer\_id} representa una pieza concreta (un episodio, una
+película, un partido), no un programa completo; para métricas por serie se
+agrupa por \code{series\_title}.
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Volumen:} \code{total\_plays}, \code{unique\_viewers}.
+  \item \textbf{Funnel:} \code{firstquartile\_rate}, \code{midpoint\_rate},
+        \code{thirdquartile\_rate}, \code{completion\_rate}.
+  \item \textbf{Calidad:} \code{avg\_buffer\_time}, \code{rebuffer\_rate},
+        \code{avg\_completion\_pct}.
+  \item \textbf{Breakdown:} \code{plays\_by\_device} $=
+        \{\code{ANDR}, \code{IOS}, \code{WEB}\}$.
+\end{itemize}
+
+\begin{lstlisting}[language=Python,caption={Documento de ejemplo en \code{content\_stats}}]
+{
+  "customer_id": "69553fe8c788eafebe63de75",
+  "title": "PARTIDO APARTE",
+  "content_type": "MOVIE",
+  "total_plays": 40,
+  "unique_viewers": 33,
+  "firstquartile_rate": 82.5,
+  "midpoint_rate": 67.5,
+  "thirdquartile_rate": 50.0,
+  "completion_rate": 30.0,
+  "avg_buffer_time": 2.314,
+  "rebuffer_rate": 18.5,
+  "avg_completion_pct": 64.2,
+  "plays_by_device": { "WEB": 22, "ANDR": 12, "IOS": 6 }
+}
+\end{lstlisting}
+
+\subsection{Estrategia de índices}
+Cada colección define índices alineados con sus patrones de consulta. Por
+ejemplo, en \code{events} el índice compuesto
+\code{(subscriber\_id, customer\_id, date)} acelera la reconstrucción de
+sesiones, mientras que \code{(type\_event, date DESC)} sirve a los filtros de
+QoE. En \code{sessions}, el índice único
+\code{(subscriber\_id, customer\_id, start\_time)} es la clave de upsert que
+garantiza idempotencia.
+
+\paragraph{Índices de \code{events}.}
+\begin{center}
+\begin{tabular}{@{}lL{7.5cm}@{}}
+\toprule
+\textbf{Índice} & \textbf{Propósito} \\
+\midrule
+\code{(subscriber\_id, customer\_id, date)} & Reconstrucción ordenada de sesiones. \\
+\code{(date DESC)} & Ventanas de tiempo (alertas, actividad reciente). \\
+\code{(type\_event, date DESC)} & Filtros de QoE por tipo de evento. \\
+\code{(customer\_id, type\_event)} & Rankings de contenido. \\
+\code{(device\_type)} & Desglose por plataforma. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Índices de \code{sessions}.}
+\begin{center}
+\begin{tabular}{@{}lL{7.5cm}@{}}
+\toprule
+\textbf{Índice} & \textbf{Propósito} \\
+\midrule
+\code{(subscriber\_id)} & Usuarios únicos y perfil de usuario. \\
+\code{(customer\_id)} & Consultas por contenido. \\
+\code{(device\_type)} & Ranking de dispositivos. \\
+\code{(start\_time DESC, total\_buffer\_time DESC)} & Alertas de buffer reciente. \\
+\code{(customer\_id, reached\_complete)} & Funnel de retención por contenido. \\
+\code{(subscriber\_id, customer\_id, start\_time)} \textbf{UNIQUE} & Clave de upsert (idempotencia). \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Índices de \code{content\_stats}.}
+\begin{center}
+\begin{tabular}{@{}lL{7.5cm}@{}}
+\toprule
+\textbf{Índice} & \textbf{Propósito} \\
+\midrule
+\code{(customer\_id)} \textbf{UNIQUE} & Un documento por contenido. \\
+\code{(total\_plays DESC)} & Ranking por número de vistas. \\
+\code{(avg\_buffer\_time DESC)} & Ranking QoE (peores por buffer). \\
+\code{(genres, total\_plays DESC)} & Rankings filtrados por género. \\
+\code{(series\_title, total\_plays DESC)} & Agrupación por serie. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ============================================================
+\section{Ingesta y pipeline de datos}
+% ============================================================
+\subsection{Parseo e ingesta de CSV}
+La lógica de parseo vive en \code{db/csv\_ingest.py} y es compartida por el
+script de línea de comandos (\code{scripts/load\_csv.py}) y el endpoint del panel
+de administración (\code{POST /api/admin/upload-csv}). Así, el script y la UI
+procesan los CSV de forma idéntica. El módulo realiza:
+
+\begin{enumerate}[leftmargin=*]
+  \item Casteo de tipos: cada columna del CSV se mapea al \code{bsonType}
+        esperado. Los \code{NaN} de pandas se convierten en \code{None} y los
+        enteros que vienen como \code{"2023.0"} se castean vía \code{float}.
+  \item Filtrado: se descarta toda fila sin alguno de los cinco campos
+        obligatorios (no se puede construir una sesión a partir de ella).
+  \item Inserción por lotes de 1.000 documentos con \code{ordered=False}.
+\end{enumerate}
+
+\paragraph{Tolerancia a fallos.} Con \code{ordered=False}, si un documento falla
+la validación de Mongo, el lote continúa en lugar de detenerse. El conteo real
+de insertados se toma del resultado de cada lote, incluyendo el \code{nInserted}
+que reporta un \code{BulkWriteError}.
+
+\subsection{Construcción de sesiones}
+El pipeline de \code{db/pipelines/sessions.py} agrupa los eventos por par
+(\code{subscriber\_id}, \code{customer\_id}), los ordena por fecha y los parte en
+sub-sesiones cada vez que aparece un \code{START}. Por cada sub-sesión calcula
+el buffer total, los conteos de re-buffering y pausa, la posición máxima y el
+porcentaje de completitud.
+
+\begin{lstlisting}[language=Python,caption={Partición en sub-sesiones por evento START (db/pipelines/sessions.py)}]
+for ev in evs:
+    if ev["type_event"] == "START" and current:
+        sub_sessions.append(current)
+        current = []
+    current.append(ev)
+if current:
+    sub_sessions.append(current)
+\end{lstlisting}
+
+\paragraph{Cap de \code{completion\_pct} a 100\%.} Algunas filas traen
+\code{Position} en una unidad distinta a \code{Duration} (milisegundos frente a
+segundos) o posiciones residuales de sesiones previas, lo que dispara el
+porcentaje por encima de 100. Capear a 100\% evita que esos valores atípicos
+contaminen los promedios de completitud del dashboard:
+
+\begin{lstlisting}[language=Python,caption={Cálculo de completitud capado}]
+completion_pct = (
+    round(min(max_position / duration * 100, 100.0), 2)
+    if duration and duration > 0 and max_position is not None
+    else None
+)
+\end{lstlisting}
+
+\subsection{Agregación de content\_stats}
+El pipeline de \code{db/pipelines/content\_stats.py} lee todas las sesiones, las
+agrupa por \code{customer\_id} y produce un documento agregado por contenido:
+volumen, tasas del funnel, métricas de calidad y desglose por dispositivo. La
+escritura usa \code{UpdateOne(..., upsert=True)} por \code{customer\_id}.
+
+\subsection{Idempotencia mediante upsert}
+Tanto sesiones como content\_stats se escriben con \emph{upsert} sobre su clave
+única. Cargar el mismo CSV dos veces \textbf{actualiza} los documentos en lugar
+de duplicarlos, lo que hace que el pipeline sea seguro de re-ejecutar.
+
+% ============================================================
+\section{API REST}
+% ============================================================
+Toda la API vive bajo el prefijo \code{/api}. Las respuestas son JSON; los
+errores retornan \code{\{ "detail": "mensaje en español" \}}. Los contratos se
+validan con esquemas Pydantic v2 y la documentación interactiva (Swagger) se
+genera automáticamente en \code{/docs}.
+
+\subsection{Módulo Overview}
+\begin{center}
+\begin{tabular}{@{}lL{7.5cm}@{}}
+\toprule
+\textbf{Endpoint} & \textbf{Descripción} \\
+\midrule
+\code{GET /overview/unique-users} & Total de suscriptores distintos. \\
+\code{GET /overview/total-plays} & Total de reproducciones (= sesiones). \\
+\code{GET /overview/device-ranking} & Sesiones agrupadas por dispositivo. \\
+\code{GET /overview/activity-by-hour} & Sesiones por hora del día (las 24 horas). \\
+\code{GET /overview/top-content} & Contenidos más vistos (param \code{limit}). \\
+\code{GET /overview/users-map} & Una burbuja por usuario activo, ubicada en el centroide de su país + jitter determinístico. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+El endpoint del mapa trunca el \code{subscriber\_id} a 8 caracteres (no expone
+el identificador completo) y posiciona cada usuario en el centroide de su país
+más un \emph{jitter} determinístico, ya que el dataset solo trae el código de
+país, no coordenadas.
+
+\subsection{Módulo QoE}
+\begin{center}
+\begin{tabular}{@{}lL{7.5cm}@{}}
+\toprule
+\textbf{Endpoint} & \textbf{Descripción} \\
+\midrule
+\code{GET /qoe/buffer-by-content} & Buffer promedio por contenido (peores primero). \\
+\code{GET /qoe/rebuffering-rate} & Tasa de re-buffering por eventos y por sesiones. \\
+\code{GET /qoe/startup-time} & Tiempo de inicialización (promedio, máximo y distribución). \\
+\code{GET /qoe/event-ranking} & Ranking de tipos de evento por frecuencia. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Módulo Users}
+\begin{center}
+\begin{tabular}{@{}lL{7.5cm}@{}}
+\toprule
+\textbf{Endpoint} & \textbf{Descripción} \\
+\midrule
+\code{GET /users/retention-funnel} & Funnel: cuántas sesiones llegaron a cada cuartil. \\
+\code{GET /users/activity-heatmap} & Sesiones por hora $\times$ día de la semana (168 puntos). \\
+\code{GET /users/content-completion-ranking} & Contenidos más completados y más abandonados (param \code{min\_plays}). \\
+\code{GET /users/user-profiles} & Clasificación de usuarios por actividad. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Perfiles de usuario.} Los usuarios se clasifican por el número total
+de eventos que generan: \textbf{Vague} ($<10$), \textbf{Mid} ($10$–$49$) y
+\textbf{Heavy} ($\geq 50$). Los umbrales son constantes
+(\code{PROFILE\_MID\_MIN}, \code{PROFILE\_HEAVY\_MIN}) en
+\code{db/repositories/users.py}, y la clasificación se resuelve del lado del
+servidor con un \code{\$switch} en la agregación.
+
+\subsection{Módulo Admin}
+\begin{center}
+\begin{tabular}{@{}lL{7.5cm}@{}}
+\toprule
+\textbf{Endpoint} & \textbf{Descripción} \\
+\midrule
+\code{GET /admin/collections} & Conteo de documentos por colección. \\
+\code{POST /admin/upload-csv} & Sube un CSV y re-construye las derivadas. \\
+\code{GET /admin/documents/\{col\}} & Documentos paginados (\code{page}, \code{page\_size}). \\
+\code{PUT /admin/documents/\{col\}/\{id\}} & Edición en vivo (\code{\$set} de campos). \\
+\code{DELETE /admin/documents/\{col\}/\{id\}} & Borrado de un documento. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Ejemplos de petición y respuesta}
+Por ejemplo, el ranking de contenido devuelve un arreglo ya ordenado y
+proyectado:
+
+\begin{lstlisting}[language=bash,caption={Petición y respuesta de top-content}]
+GET /api/overview/top-content?limit=2
+
+{
+  "content": [
+    { "title": "Liga BetPlay", "total_plays": 120,
+      "unique_viewers": 80, "content_type": "LIVE" },
+    { "title": "PARTIDO APARTE", "total_plays": 40,
+      "unique_viewers": 33, "content_type": "MOVIE" }
+  ]
+}
+\end{lstlisting}
+
+\begin{lstlisting}[language=bash,caption={Respuesta del funnel de retención}]
+GET /api/users/retention-funnel
+
+{ "total": 1000, "firstquartile": 800, "midpoint": 600,
+  "thirdquartile": 400, "complete": 200 }
+\end{lstlisting}
+
+\paragraph{Las consultas se resuelven en el servidor.} Ningún repositorio trae
+documentos completos: las métricas se calculan con el \emph{aggregation
+framework} de MongoDB. La clasificación de perfiles, por ejemplo, usa
+\code{\$switch} para etiquetar a cada usuario sin traer datos al cliente:
+
+\begin{lstlisting}[language=Python,caption={Clasificación de perfiles con \$switch (db/repositories/users.py)}]
+"profile": {
+  "$switch": {
+    "branches": [
+      {"case": {"$lt": ["$events", PROFILE_MID_MIN]},   "then": "Vague"},
+      {"case": {"$lt": ["$events", PROFILE_HEAVY_MIN]},  "then": "Mid"},
+    ],
+    "default": "Heavy",
+  }
+}
+\end{lstlisting}
+
+\subsection{Manejo de errores}
+\begin{center}
+\begin{tabular}{@{}cl@{}}
+\toprule
+\textbf{Código} & \textbf{Significado} \\
+\midrule
+\code{400} & Petición inválida (ID malformado, archivo no-CSV o vacío). \\
+\code{404} & Recurso o colección no encontrada. \\
+\code{422} & Error de validación de parámetros / cuerpo. \\
+\code{500} & Error interno del servidor. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ============================================================
+\section{Dashboard (Frontend)}
+% ============================================================
+El frontend es una SPA en \textbf{React 19} servida con \textbf{Vite}. Las
+gráficas se construyen con \textbf{Recharts} y el mapa de usuarios con
+\textbf{Leaflet} (\code{react-leaflet}). El proxy de Vite redirige \code{/api}
+hacia \code{http://localhost:8000}, por lo que no se requiere configurar CORS en
+desarrollo.
+
+\subsection{Páginas}
+\begin{center}
+\begin{tabular}{@{}lL{7cm}c@{}}
+\toprule
+\textbf{Página} & \textbf{Contenido} & \textbf{Estado} \\
+\midrule
+Overview & KPIs, mapa de burbujas, ranking de dispositivos, actividad por hora & Listo \\
+QoE & Buffer por contenido, tasa de re-buffering, tiempo de inicio, ranking de eventos & Listo \\
+Usuarios & Perfiles, funnel de retención, heatmap, completitud por contenido & Listo \\
+Admin & Carga de CSV, conteo de colecciones, edición/borrado en vivo & Listo \\
+Alertas & Tablero de alertas operativas & En construcción \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Componentes y temas}
+Cada página orquesta componentes presentacionales que consumen un endpoint
+específico (por ejemplo, \code{KPICard}, \code{UsersMap}, \code{RebufferingRate},
+\code{RetentionFunnel}, \code{DocumentTable}). El dashboard define dos temas en
+\code{src/styles/theme.css}: \textbf{brand} (naranja Win Sports \code{\#FF6B00}
+sobre gris oscuro) y \textbf{premium} (naranja quemado sobre casi negro).
+
+\subsection{Mapa de usuarios: jitter determinístico}
+Como el dataset solo trae el código de país (no coordenadas), cada usuario se
+ubica en el centroide de su país más un desplazamiento (\emph{jitter}) calculado
+de forma determinística a partir del hash MD5 de su \code{subscriber\_id}. Así,
+un mismo usuario cae siempre en el mismo punto entre peticiones, evitando que
+todos se apilen exactamente sobre el centroide:
+
+\begin{lstlisting}[language=Python,caption={Jitter determinístico (db/repositories/overview.py)}]
+h = hashlib.md5(seed.encode()).hexdigest()
+lat_off = (int(h[:8], 16) / 0xFFFFFFFF - 0.5) * 2 * spread
+lon_off = (int(h[8:16], 16) / 0xFFFFFFFF - 0.5) * 2 * spread
+\end{lstlisting}
+
+% ============================================================
+\section{Sistema de alertas}
+% ============================================================
+El módulo de alertas (\code{db/repositories/alerts.py}) detecta condiciones
+operativas anómalas dentro de la ventana temporal de los datos cargados,
+clasificándolas en tres niveles de severidad:
+
+\begin{center}
+\begin{tabular}{@{}clL{6.5cm}@{}}
+\toprule
+\textbf{Severidad} & \textbf{Tipo} & \textbf{Condición} \\
+\midrule
+Roja & \code{buffer\_critico} & Sesiones con más de 15 s de buffer acumulado. \\
+Amarilla & \code{rebuffer\_rate} & Contenidos donde $>30\%$ de las sesiones (mín. 10) tienen al menos un re-buffering. \\
+Azul & \code{pause\_storm} & Usuarios con más de 5 pausas en menos de 8 minutos en una misma sesión. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+El endpoint \code{GET /api/alerts/} combina las tres familias, las ordena por
+severidad y marca temporal, y retorna además los totales por color y la ventana
+del período analizado. La lógica del backend está implementada; la página de
+Alertas del dashboard se encuentra en construcción.
+
+% ============================================================
+\section{Panel de administración}
+% ============================================================
+La pestaña \textbf{Admin} permite al equipo gestionar los datos sin tocar Mongo
+directamente:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Carga de CSV.} Sube un archivo, lo inserta en \code{events}
+        reutilizando \code{db/csv\_ingest.py}, y re-construye \code{sessions} y
+        \code{content\_stats}. Muestra un resumen: insertados, omitidos, total y
+        cuántas derivadas quedaron.
+  \item \textbf{Conteo de colecciones.} Tarjetas con el total y el desglose por
+        colección, refrescadas tras cada operación.
+  \item \textbf{Edición/borrado en vivo.} Tabla paginada donde se editan campos
+        escalares (preservando su tipo original) o se borran documentos.
+\end{itemize}
+
+\paragraph{Seguridad de la capa de admin.} Solo se exponen tres colecciones
+(\code{events}, \code{sessions}, \code{content\_stats}); cualquier otra se
+rechaza con \code{404}, de modo que el panel no puede tocar colecciones internas
+de Mongo. El \code{\_id} es inmutable y los \code{ObjectId} se validan antes de
+operar (un ID malformado retorna \code{400}).
+
+\paragraph{Advertencia.} El panel \textbf{aún no tiene autenticación}; asume que
+la API corre en una red interna. Añadir auth es un pendiente antes de exponerlo a
+producción. Editar una colección derivada es un cambio manual que una nueva carga
+de CSV sobrescribe; para cambios permanentes hay que editar \code{events} y
+re-procesar.
+
+% ============================================================
+\section{Decisiones de diseño}
+% ============================================================
+\begin{description}[leftmargin=0pt,style=nextline]
+  \item[Change streams en vez de recalcular por request.] Con millones de
+        eventos, agregar en tiempo real sería demasiado lento para un dashboard
+        interactivo. Las colecciones derivadas actúan como una caché persistente
+        que los change streams mantienen al día.
+  \item[\code{validationAction: "warn"} en vez de \code{"error"}.] Durante una
+        carga masiva, un documento con un campo inesperado no debe detener la
+        inserción del resto. Los errores se registran sin interrumpir.
+  \item[Upsert con clave única en sessions.]
+        \code{subscriber\_id + customer\_id + start\_time} garantiza
+        idempotencia: re-cargar el mismo CSV no duplica sesiones.
+  \item[Scripts separados para carga y pipeline.] \code{load\_csv.py} solo
+        inserta eventos; \code{test\_pipeline.py} construye las derivadas. Esto
+        permite iterar el pipeline sin volver a subir el CSV completo.
+  \item[Parseo de CSV compartido.] El script CLI y el panel de admin usan el
+        mismo módulo (\code{csv\_ingest.py}), evitando divergencias entre ambos
+        caminos de ingesta.
+  \item[Degradación con gracia de los change streams.] Si el clúster no soporta
+        change streams (Mongo \emph{standalone}, sin réplica), la API loguea el
+        problema y sigue funcionando con las derivadas que construye
+        \code{test\_pipeline.py}.
+\end{description}
+
+% ============================================================
+\section{Escalabilidad y requisitos no funcionales}
+% ============================================================
+El sistema está diseñado para escalar del dataset de prueba al orden de
+magnitud de la operación real:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Sharding horizontal.} MongoDB particiona \code{events} por su
+        clave natural de acceso, repartiendo carga y almacenamiento entre nodos
+        sin cambiar la aplicación.
+  \item \textbf{Vistas materializadas.} Las colecciones derivadas evitan agregar
+        sobre millones de eventos en cada petición; el costo de cómputo se paga
+        una vez en la ingesta, no en cada consulta del dashboard.
+  \item \textbf{Agregación del lado del servidor.} Todos los repositorios usan
+        \code{\$group}/\code{\$project}/\code{count\_documents}; no se traen
+        documentos completos al proceso de Python, acotando el uso de memoria.
+  \item \textbf{Ingesta por lotes tolerante a fallos.} La inserción en lotes de
+        1.000 con \code{ordered=False} sostiene cargas grandes sin abortar ante
+        documentos puntuales inválidos.
+  \item \textbf{Privacidad.} Las respuestas públicas truncan el identificador de
+        suscriptor; el mapa nunca expone el \code{subscriber\_id} completo.
+\end{itemize}
+
+% ============================================================
+\section{Pruebas}
+% ============================================================
+\subsection{Backend}
+La suite de pytest usa \textbf{mongomock-motor} para simular MongoDB en memoria,
+de modo que las pruebas no dependen de un clúster real. Cubre:
+
+\begin{itemize}[leftmargin=*]
+  \item La lógica de los pipelines (construcción de sesiones y content\_stats).
+  \item El parseo y filtrado del CSV.
+  \item Los repositorios de consulta.
+  \item El contrato de todas las rutas de la API, incluido el panel de Admin.
+\end{itemize}
+
+\begin{lstlisting}[language=bash,caption={Ejecución de pruebas}]
+# Backend
+uv run pytest
+
+# Frontend
+cd frontend && npm run test
+\end{lstlisting}
+
+\subsection{Frontend}
+Las pruebas usan \textbf{Vitest} + \textbf{Testing Library} sobre \textbf{jsdom}.
+El setup global mockea \code{react-leaflet} (jsdom no monta el mapa) y
+\code{fetch}. Las pruebas se enfocan en los componentes presentacionales
+(estados de carga, vacío y con datos) y en la navegación del \emph{shell}.
+
+% ============================================================
+\section{Riesgos y limitaciones}
+% ============================================================
+\subsection{Resueltos}
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Duplicados en sessions.} Blindado con el índice único
+        \code{idx\_sessions\_unique\_key} y escrituras vía \code{upsert} sobre la
+        clave compuesta. Un re-procesamiento actualiza la sesión en vez de
+        duplicarla.
+  \item \textbf{Consumo de memoria en consultas.} Ningún repositorio trae
+        documentos completos: las consultas resuelven con agregaciones
+        \code{\$group}/\code{\$project} o \code{count\_documents}, que agregan del
+        lado del servidor.
+\end{itemize}
+
+\subsection{Abiertos / a vigilar}
+\begin{itemize}[leftmargin=*]
+  \item \code{distinct("subscriber\_id")} (usado al construir sesiones) tiene un
+        tope de 16 MB de BSON. Si el número de suscriptores crece mucho, conviene
+        migrar a \code{\$group + \$count}.
+  \item El bundle del frontend supera los 500 kB (Leaflet + Recharts). Hoy es
+        solo un \emph{warning} de build; si molesta, se puede aplicar
+        \emph{code-splitting} con \code{import()} dinámico del mapa.
+  \item El panel de Admin carece de autenticación.
+\end{itemize}
+
+% ============================================================
+\section{Trabajo futuro}
+% ============================================================
+\begin{itemize}[leftmargin=*]
+  \item Completar la página de Alertas del dashboard (el backend ya existe).
+  \item Añadir autenticación/autorización al panel de administración.
+  \item Editor tipado de fechas y de campos anidados en la tabla de Admin.
+  \item Búsqueda/filtro dentro de la tabla de documentos.
+  \item Despliegue de los change streams en un clúster réplica para
+        sincronización en tiempo real.
+  \item Migrar consultas sensibles a volumen (\code{distinct}) a agregaciones.
+\end{itemize}
+
+% ============================================================
+\section{Conclusiones}
+% ============================================================
+WinSports demuestra cómo un modelo de datos documental de tres niveles
+—fuente de verdad inmutable más vistas materializadas— resuelve de forma
+elegante la tensión entre la captura de eventos crudos y la necesidad de
+consultas analíticas rápidas. La separación estricta de capas (base de datos,
+repositorios, API y frontend) hace que el sistema sea mantenible y extensible:
+cada componente puede evolucionar de forma independiente mientras respete el
+contrato que lo conecta con el siguiente.
+
+Las decisiones clave —change streams como caché persistente, upsert idempotente,
+parseo de CSV compartido, validación tolerante a fallos— responden directamente
+a las dos características del dominio: esquema flexible y alto volumen. El
+resultado es un sistema que, además de funcionar sobre el dataset de prueba,
+está diseñado para escalar al orden de magnitud que exigiría la operación real
+de Win Sports.
+
+% ============================================================
+\section{Glosario}
+% ============================================================
+\begin{description}[leftmargin=0pt,style=nextline]
+  \item[Evento] Registro atómico emitido por el reproductor (\code{START},
+        \code{PAUSE}, \code{COMPLETE}, etc.). Una fila del CSV.
+  \item[Sesión] Conjunto de eventos de un par usuario--contenido entre un
+        \code{START} y el siguiente. Unidad de análisis de reproducción.
+  \item[QoE (Quality of Experience)] Calidad percibida de la reproducción:
+        buffer, re-buffering y tiempo de inicialización.
+  \item[Funnel de retención] Proporción de sesiones que alcanzan cada hito de
+        progreso (primer cuartil, mitad, tercer cuartil, completo).
+  \item[Upsert] Operación que actualiza el documento si existe o lo inserta si
+        no; base de la idempotencia del pipeline.
+  \item[Change stream] Mecanismo de MongoDB que emite cambios en una colección,
+        usado para sincronizar las colecciones derivadas en tiempo real.
+  \item[Vista materializada] Colección derivada precalculada (\code{sessions},
+        \code{content\_stats}) que actúa como caché de consultas.
+  \item[Centroide] Coordenada (lat, lon) representativa de un país, usada como
+        ancla del mapa de usuarios.
+  \item[Jitter] Desplazamiento determinístico aplicado a un punto del mapa para
+        que usuarios del mismo país no se solapen.
+\end{description}
+
+% ============================================================
+\section{Referencias}
+% ============================================================
+\renewcommand{\refname}{}
+\begin{thebibliography}{99}
+
+\bibitem{mongodb} MongoDB, Inc.
+  \emph{MongoDB Manual — Documents, Schema Validation y Change Streams}.
+  \url{https://www.mongodb.com/docs/manual/}
+
+\bibitem{atlas} MongoDB, Inc.
+  \emph{MongoDB Atlas Documentation}.
+  \url{https://www.mongodb.com/docs/atlas/}
+
+\bibitem{motor} MongoDB, Inc.
+  \emph{Motor: Asynchronous Python Driver for MongoDB}.
+  \url{https://motor.readthedocs.io/}
+
+\bibitem{fastapi} S. Ramírez.
+  \emph{FastAPI Documentation}.
+  \url{https://fastapi.tiangolo.com/}
+
+\bibitem{pydantic} Pydantic.
+  \emph{Pydantic v2 Documentation}.
+  \url{https://docs.pydantic.dev/}
+
+\bibitem{uvicorn} Encode.
+  \emph{Uvicorn: An ASGI web server for Python}.
+  \url{https://www.uvicorn.org/}
+
+\bibitem{react} Meta Open Source.
+  \emph{React Documentation}.
+  \url{https://react.dev/}
+
+\bibitem{vite} Evan You y contribuidores.
+  \emph{Vite: Next Generation Frontend Tooling}.
+  \url{https://vitejs.dev/}
+
+\bibitem{recharts} Recharts Group.
+  \emph{Recharts: A composable charting library built on React components}.
+  \url{https://recharts.org/}
+
+\bibitem{leaflet} V. Agafonkin.
+  \emph{Leaflet: an open-source JavaScript library for interactive maps}.
+  \url{https://leafletjs.com/}
+
+\bibitem{pandas} The pandas development team.
+  \emph{pandas Documentation}.
+  \url{https://pandas.pydata.org/docs/}
+
+\bibitem{pytest} H. Krekel y el equipo de pytest.
+  \emph{pytest Documentation}.
+  \url{https://docs.pytest.org/}
+
+\bibitem{vitest} The Vitest Team.
+  \emph{Vitest: A Vite-native testing framework}.
+  \url{https://vitest.dev/}
+
+\bibitem{docs-internas} Proyecto WinSports.
+  \emph{Documentación interna del repositorio}:
+  \texttt{docs/architecture.md}, \texttt{docs/collections.md},
+  \texttt{docs/endpoints.md}, \texttt{docs/frontend.md},
+  \texttt{docs/admin.md} y \texttt{docs/scripts.md}.
+
+\end{thebibliography}
+
+% ============================================================
+\appendix
+\section{Anexo: puesta en marcha}
+% ============================================================
+\begin{lstlisting}[language=bash,caption={Configuración y ejecución}]
+# 1. Dependencias
+uv sync
+cd frontend && npm install && cd ..
+
+# 2. Variables de entorno (.env en la raiz)
+#    MONGO_URI=mongodb+srv://<usuario>:<password>@<cluster>.mongodb.net/
+#    MONGO_DB_NAME=winsports
+
+# 3. Cargar datos
+uv run scripts/load_csv.py --file data/archivo.csv
+uv run scripts/test_pipeline.py          # construir derivadas
+uv run scripts/test_pipeline.py --HARD   # borrar y reconstruir
+
+# 4. Levantar el dashboard (dos terminales)
+uv run uvicorn api.main:app --reload     # API   -> :8000
+cd frontend && npm run dev               # Front -> :5173
+\end{lstlisting}
+
+\noindent\textbf{Enlaces locales:}
+\begin{itemize}[leftmargin=*]
+  \item Frontend: \url{http://localhost:5173}
+  \item Documentación de la API (Swagger): \url{http://localhost:8000/docs}
+  \item Health check: \url{http://localhost:8000/api/health}
+\end{itemize}
+
+% ============================================================
+\section{Anexo: estructura del repositorio}
+% ============================================================
+\begin{lstlisting}[language=bash,caption={Árbol de carpetas (resumen)}]
+WinSports/
+|- api/
+|  |- main.py                # app FastAPI + lifespan + routers
+|  |- routes/                # overview, qoe, users, alerts, admin
+|  +- schemas/               # modelos Pydantic de respuesta
+|- config/
+|  |- settings.py            # carga de .env (pydantic-settings)
+|  +- constants.py           # colecciones, centroides de paises
+|- db/
+|  |- connection.py          # connect / disconnect / get_db
+|  |- csv_ingest.py          # parseo e insercion de CSV (compartido)
+|  |- collections/           # validators + setup de cada coleccion
+|  |- indexes/               # definicion de indices
+|  |- pipelines/             # construccion de sessions y content_stats
+|  +- repositories/          # queries por modulo
+|- scripts/
+|  |- load_csv.py            # carga de events
+|  |- test_pipeline.py       # construye derivadas
+|  +- verify_connection.py   # prueba de conexion a Atlas
+|- frontend/                 # React + Vite (pages, components, layout)
+|- data/                     # CSVs de eventos de muestra
+|- docs/                     # documentacion tecnica
++- tests/                    # pytest (db/ y api/)
+\end{lstlisting}
+
+\end{document}
