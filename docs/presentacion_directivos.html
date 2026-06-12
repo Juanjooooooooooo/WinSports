@@ -1,0 +1,939 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WinSports Analytics — De datos a decisiones</title>
+    <style>
+      :root {
+        --naranja: #ff7a00;
+        --naranja-claro: #ffa64d;
+        --fondo: #0d0d10;
+        --fondo-card: #17171c;
+        --borde: #2a2a32;
+        --texto: #f2f2f5;
+        --texto-suave: #9a9aa5;
+        --verde: #3dd68c;
+        --rojo: #ff5c5c;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        background: var(--fondo);
+        color: var(--texto);
+        font-family:
+          "Segoe UI",
+          "Inter",
+          -apple-system,
+          sans-serif;
+        overflow: hidden;
+      }
+
+      .slide {
+        position: absolute;
+        inset: 0;
+        display: none;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 5vh 7vw;
+        text-align: center;
+      }
+      .slide.activa {
+        display: flex;
+        animation: entrada 0.45s ease both;
+      }
+      @keyframes entrada {
+        from {
+          opacity: 0;
+          transform: translateY(14px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      .kicker {
+        color: var(--naranja);
+        font-size: clamp(13px, 1.3vw, 18px);
+        font-weight: 700;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        margin-bottom: 2.2vh;
+      }
+      h1 {
+        font-size: clamp(34px, 5.2vw, 78px);
+        font-weight: 800;
+        line-height: 1.1;
+      }
+      h2 {
+        font-size: clamp(26px, 3.6vw, 54px);
+        font-weight: 800;
+        line-height: 1.15;
+        max-width: 90%;
+      }
+      .sub {
+        color: var(--texto-suave);
+        font-size: clamp(15px, 1.6vw, 24px);
+        margin-top: 2.5vh;
+      }
+      .acento {
+        color: var(--naranja);
+      }
+
+      .grid {
+        display: grid;
+        gap: 1.6vw;
+        width: 100%;
+        margin-top: 4.5vh;
+      }
+      .g2 {
+        grid-template-columns: 1fr 1fr;
+      }
+      .g3 {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+      .g4 {
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+      }
+
+      .card {
+        background: var(--fondo-card);
+        border: 1px solid var(--borde);
+        border-radius: 14px;
+        padding: 3.2vh 1.6vw;
+        text-align: left;
+      }
+      .card .num {
+        font-size: clamp(26px, 3vw, 46px);
+        font-weight: 800;
+        color: var(--naranja);
+      }
+      .card .titulo {
+        font-size: clamp(15px, 1.4vw, 21px);
+        font-weight: 700;
+        margin-bottom: 1vh;
+      }
+      .card .detalle {
+        font-size: clamp(13px, 1.15vw, 17px);
+        color: var(--texto-suave);
+        line-height: 1.45;
+      }
+      .card.destacada {
+        border-color: var(--naranja);
+        box-shadow: 0 0 40px rgba(255, 122, 0, 0.12);
+      }
+
+      .pill {
+        display: inline-block;
+        background: rgba(255, 122, 0, 0.12);
+        color: var(--naranja);
+        border: 1px solid rgba(255, 122, 0, 0.4);
+        border-radius: 999px;
+        padding: 0.5em 1.2em;
+        font-size: clamp(12px, 1.1vw, 16px);
+        font-weight: 600;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 4vh;
+        font-size: clamp(14px, 1.5vw, 22px);
+      }
+      th {
+        color: var(--naranja);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: clamp(12px, 1.1vw, 16px);
+        padding: 1.6vh 1.4vw;
+        border-bottom: 2px solid var(--naranja);
+      }
+      td {
+        padding: 2vh 1.4vw;
+        border-bottom: 1px solid var(--borde);
+      }
+      td.precio {
+        font-weight: 800;
+        font-size: clamp(18px, 2vw, 30px);
+        color: var(--naranja);
+        white-space: nowrap;
+      }
+      tr.recomendada {
+        background: rgba(255, 122, 0, 0.07);
+      }
+
+      .nota-pie {
+        position: absolute;
+        bottom: 3.5vh;
+        left: 0;
+        right: 0;
+        font-size: clamp(11px, 1vw, 14px);
+        color: var(--texto-suave);
+      }
+
+      .contador {
+        position: fixed;
+        bottom: 18px;
+        right: 26px;
+        color: var(--texto-suave);
+        font-size: 13px;
+        font-variant-numeric: tabular-nums;
+        z-index: 10;
+      }
+      .marca {
+        position: fixed;
+        bottom: 18px;
+        left: 26px;
+        color: var(--texto-suave);
+        font-size: 13px;
+        z-index: 10;
+      }
+      .marca b {
+        color: var(--naranja);
+      }
+      .progreso {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 3px;
+        background: var(--naranja);
+        transition: width 0.3s ease;
+        z-index: 10;
+      }
+
+      /* Slide 3: marco del screenshot */
+      .marco-dashboard {
+        width: min(78vw, 1150px);
+        aspect-ratio: 16/9;
+        border-radius: 14px;
+        border: 1px solid var(--borde);
+        background: var(--fondo-card);
+        overflow: hidden;
+        margin-top: 3.5vh;
+        position: relative;
+      }
+      .marco-dashboard img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .placeholder-dash {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 1.5vh;
+        color: var(--texto-suave);
+      }
+      .placeholder-dash .grande {
+        font-size: clamp(16px, 1.8vw, 26px);
+        font-weight: 700;
+        color: var(--texto);
+      }
+
+      /* Slide 4: gráfico de barras por hora */
+      .chart-horas {
+        display: flex;
+        align-items: flex-end;
+        gap: 3px;
+        height: 11vh;
+        margin-top: 1.8vh;
+      }
+      .chart-horas .barra {
+        flex: 1;
+        background: var(--borde);
+        border-radius: 3px 3px 0 0;
+        min-height: 2px;
+      }
+      .chart-horas .barra.pico {
+        background: var(--naranja);
+      }
+      .ejes-horas {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        color: var(--texto-suave);
+        margin-top: 0.6vh;
+      }
+
+      /* Slide 7: mockup de correo */
+      .mock-correo {
+        width: min(62vw, 860px);
+        background: var(--fondo-card);
+        border: 1px solid var(--borde);
+        border-radius: 14px;
+        margin-top: 3.5vh;
+        text-align: left;
+        overflow: hidden;
+      }
+      .mock-correo .barra-ventana {
+        background: #1f1f26;
+        padding: 12px 18px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .punto {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #3a3a44;
+      }
+      .mock-correo .cabecera {
+        padding: 2.2vh 2vw 1.2vh;
+        border-bottom: 1px solid var(--borde);
+      }
+      .mock-correo .asunto {
+        font-weight: 700;
+        font-size: clamp(15px, 1.5vw, 22px);
+      }
+      .mock-correo .meta {
+        color: var(--texto-suave);
+        font-size: clamp(12px, 1.1vw, 15px);
+        margin-top: 0.6vh;
+      }
+      .mock-correo .cuerpo {
+        padding: 2vh 2vw 2.6vh;
+      }
+      .kpi-fila {
+        display: flex;
+        gap: 1.2vw;
+        margin-top: 1.4vh;
+      }
+      .kpi {
+        flex: 1;
+        background: #1f1f26;
+        border-radius: 10px;
+        padding: 1.6vh 1vw;
+        text-align: center;
+      }
+      .kpi .v {
+        font-size: clamp(17px, 1.9vw, 28px);
+        font-weight: 800;
+        color: var(--naranja);
+      }
+      .kpi .l {
+        font-size: clamp(10px, 0.95vw, 13px);
+        color: var(--texto-suave);
+        margin-top: 0.4vh;
+      }
+      .adjunto {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6em;
+        background: #1f1f26;
+        border: 1px solid var(--borde);
+        border-radius: 8px;
+        padding: 0.7em 1.1em;
+        margin-top: 2vh;
+        font-size: clamp(12px, 1.1vw, 16px);
+        color: var(--texto-suave);
+      }
+
+      .lista-limpia {
+        list-style: none;
+        text-align: left;
+        margin-top: 4vh;
+        font-size: clamp(16px, 1.8vw, 26px);
+        line-height: 2.1;
+      }
+      .lista-limpia li::before {
+        content: "—";
+        color: var(--naranja);
+        font-weight: 800;
+        margin-right: 0.7em;
+      }
+      .lista-limpia .tiempo {
+        color: var(--texto-suave);
+        font-size: 0.72em;
+        margin-left: 0.8em;
+      }
+
+      .vs {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 3.5vw;
+        margin-top: 5vh;
+      }
+      .vs .lado {
+        text-align: center;
+      }
+      .vs .cifra {
+        font-size: clamp(40px, 6vw, 96px);
+        font-weight: 800;
+      }
+      .vs .etiqueta {
+        color: var(--texto-suave);
+        font-size: clamp(13px, 1.3vw, 19px);
+        margin-top: 1vh;
+      }
+      .vs .contra {
+        color: var(--texto-suave);
+        font-size: clamp(18px, 2vw, 30px);
+        font-weight: 300;
+      }
+
+      .nav-flechas {
+        position: fixed;
+        bottom: 12px;
+        right: 90px;
+        display: flex;
+        gap: 10px;
+        z-index: 10;
+      }
+      .nav-flechas button {
+        background: var(--fondo-card);
+        border: 1px solid var(--borde);
+        color: var(--texto-suave);
+        border-radius: 8px;
+        padding: 6px 14px;
+        cursor: pointer;
+        font-size: 15px;
+      }
+      .nav-flechas button:hover {
+        color: var(--naranja);
+        border-color: var(--naranja);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="progreso" id="progreso"></div>
+
+    <!-- ════════ SLIDE 1 — PORTADA ════════ -->
+    <section class="slide activa">
+      <div class="kicker">Win Sports × Universidad del Rosario</div>
+      <h1>WinSports <span class="acento">Analytics</span></h1>
+      <div
+        class="sub"
+        style="font-size: clamp(18px, 2.2vw, 32px); margin-top: 2vh"
+      >
+        De datos a decisiones
+      </div>
+      <div class="sub" style="margin-top: 6vh">
+        Juan José Castillo &nbsp;·&nbsp; Nicolas Aguílera Varona<br />
+        Ingeniería de Datos — Universidad del Rosario<br />
+        Junio 2026
+      </div>
+    </section>
+
+    <!-- ════════ SLIDE 2 — EL PROBLEMA ════════ -->
+    <section class="slide">
+      <h2 style="font-size: clamp(30px, 4.5vw, 68px); max-width: 85%">
+        ¿Saben cuáles de sus usuarios<br />van a
+        <span class="acento">cancelar</span> el próximo mes?
+      </h2>
+    </section>
+
+    <!-- ════════ SLIDE 3 — LO QUE YA CONSTRUIMOS ════════ -->
+    <section class="slide">
+      <div class="kicker">Lo que ya construimos</div>
+      <h2 style="font-size: clamp(22px, 2.8vw, 42px)">
+        Esto ya existe. Lo construimos
+        <span class="acento">con sus datos.</span>
+      </h2>
+      <div class="marco-dashboard">
+        <img
+          src="dashboard.png"
+          alt="Dashboard WinSports Analytics"
+          onerror="
+            this.style.display = 'none';
+            this.nextElementSibling.style.display = 'flex';
+          "
+        />
+        <div class="placeholder-dash" style="display: none">
+          <div class="grande">⬛ Screenshot real del dashboard</div>
+          <div>
+            Guardar como
+            <code style="color: var(--naranja)">docs/dashboard.png</code> —
+            captura de la pestaña Overview con datos cargados
+          </div>
+        </div>
+      </div>
+      <div class="nota-pie">
+        300.000 eventos reales de Win Sports · MVP funcional construido en 7
+        días
+      </div>
+    </section>
+
+    <!-- ════════ SLIDE 4 — LO QUE PUEDE VER WIN SPORTS HOY ════════ -->
+    <section class="slide">
+      <div class="kicker">Lo que puede ver Win Sports hoy</div>
+      <h2 style="font-size: clamp(22px, 2.6vw, 40px)">
+        Tres cosas que sus datos ya dicen —
+        <span class="acento">y nadie estaba viendo</span>
+      </h2>
+      <div class="grid g3">
+        <div class="card">
+          <div class="num">44,7%</div>
+          <div class="titulo">de las sesiones Web sufren re-buffering</div>
+          <div class="detalle">
+            En iOS es <b style="color: var(--verde)">0,1%</b>. El problema de
+            calidad no es la red de sus usuarios — está localizado en el player
+            web. Eso se arregla una vez y mejora 4.921 sesiones.
+          </div>
+        </div>
+        <div class="card">
+          <div class="num">72%</div>
+          <div class="titulo">
+            completion rate de «Garra y Corazón — Cap. 5»
+          </div>
+          <div class="detalle">
+            Su contenido original retiene mejor que muchos partidos en vivo. Hoy
+            nadie está usando ese dato para decidir qué producir.
+          </div>
+        </div>
+        <div class="card">
+          <div class="num">14–15h</div>
+          <div class="titulo">es su hora pico real — no el prime time</div>
+          <div class="detalle">
+            2.567 sesiones a las 3 PM, el doble que a las 9 PM tarde. La pauta y
+            la programación están optimizadas para una audiencia que no es la
+            suya.
+          </div>
+          <div class="chart-horas" id="chartHoras"></div>
+          <div class="ejes-horas">
+            <span>0h</span><span>6h</span><span>12h</span><span>18h</span
+            ><span>23h</span>
+          </div>
+        </div>
+      </div>
+      <div class="nota-pie">
+        Datos reales — 299.999 eventos · 28.584 sesiones · 10.812 usuarios
+        únicos de Win Sports
+      </div>
+    </section>
+
+    <!-- ════════ SLIDE 5 — LOS CUATRO EJES DE VALOR ════════ -->
+    <section class="slide">
+      <div class="kicker">Los cuatro ejes de valor</div>
+      <h2 style="font-size: clamp(22px, 2.6vw, 40px)">
+        Cuatro formas en que esto se vuelve <span class="acento">dinero</span>
+      </h2>
+      <div class="grid g4">
+        <div class="card">
+          <div class="num">01</div>
+          <div class="titulo">Retención de suscriptores</div>
+          <div class="detalle">
+            Detectar el churn 3–4 semanas antes de que ocurra.
+          </div>
+        </div>
+        <div class="card">
+          <div class="num">02</div>
+          <div class="titulo">Menores costos operativos</div>
+          <div class="detalle">
+            Reportes ejecutivos automáticos. Cero trabajo manual.
+          </div>
+        </div>
+        <div class="card">
+          <div class="num">03</div>
+          <div class="titulo">Mejores contratos publicitarios</div>
+          <div class="detalle">
+            Vender audiencia con datos reales, no estimaciones.
+          </div>
+        </div>
+        <div class="card">
+          <div class="num">04</div>
+          <div class="titulo">Decisiones de contenido</div>
+          <div class="detalle">
+            Saber qué vale más antes de negociar derechos.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════ SLIDE 6 — RETENCIÓN ════════ -->
+    <section class="slide">
+      <div class="kicker">Eje 1 — Retención de suscriptores</div>
+      <h2 style="font-size: clamp(22px, 2.6vw, 40px)">
+        Cada suscriptor que cancela ya lo había
+        <span class="acento">anunciado en sus datos</span>
+      </h2>
+      <div class="vs">
+        <div class="lado">
+          <div class="cifra acento">3–4</div>
+          <div class="etiqueta">
+            semanas de anticipación<br />del modelo de churn
+          </div>
+        </div>
+        <div class="contra">→</div>
+        <div class="lado">
+          <div class="cifra" style="color: var(--verde)">~$197M</div>
+          <div class="etiqueta">
+            al año reteniendo solo el 1% mensual<br />de una base de 50.000
+            suscriptores
+          </div>
+        </div>
+      </div>
+      <div class="sub" style="max-width: 70%; margin-top: 5vh">
+        Score de riesgo por usuario, integrado al dashboard.<br />Su equipo de
+        retención sabe a quién llamar <b class="acento">antes</b> de que
+        cancele.
+      </div>
+    </section>
+
+    <!-- ════════ SLIDE 7 — COSTOS OPERATIVOS ════════ -->
+    <section class="slide">
+      <div class="kicker">Eje 2 — Menores costos operativos</div>
+      <h2 style="font-size: clamp(22px, 2.6vw, 40px)">
+        Cada lunes a las 7 AM,
+        <span class="acento">sin que nadie lo genere</span>
+      </h2>
+      <div class="mock-correo">
+        <div class="barra-ventana">
+          <span class="punto"></span><span class="punto"></span
+          ><span class="punto"></span>
+        </div>
+        <div class="cabecera">
+          <div class="asunto">📊 Reporte semanal — WinSports Analytics</div>
+          <div class="meta">
+            De: reportes@winsports-analytics.co &nbsp;·&nbsp; Para: dirección
+            ejecutiva &nbsp;·&nbsp; Lunes 7:00 AM
+          </div>
+        </div>
+        <div class="cuerpo">
+          <div class="kpi-fila">
+            <div class="kpi">
+              <div class="v">28.584</div>
+              <div class="l">Sesiones esta semana</div>
+            </div>
+            <div class="kpi">
+              <div class="v">10.812</div>
+              <div class="l">Usuarios activos</div>
+            </div>
+            <div class="kpi">
+              <div class="v" style="color: var(--rojo)">312</div>
+              <div class="l">Usuarios en riesgo de churn</div>
+            </div>
+            <div class="kpi">
+              <div class="v">8,8%</div>
+              <div class="l">Sesiones con re-buffering</div>
+            </div>
+          </div>
+          <div class="adjunto">
+            📎 reporte_semanal.pdf — KPIs, tendencias y alertas
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════ SLIDE 8 — CONTRATOS PUBLICITARIOS ════════ -->
+    <section class="slide">
+      <div class="kicker">Eje 3 — Mejores contratos publicitarios</div>
+      <h2 style="font-size: clamp(22px, 2.6vw, 40px)">
+        Hoy venden espacios con estimaciones.<br />Con la API, venden
+        <span class="acento">audiencia medida</span>.
+      </h2>
+      <div class="grid g4">
+        <div class="card">
+          <div class="titulo">Casas de apuestas</div>
+          <div class="detalle">
+            BetPlay ya es el patrocinador título de la liga. Audiencia en vivo
+            por partido, minuto a minuto.
+          </div>
+        </div>
+        <div class="card">
+          <div class="titulo">Clubes de fútbol</div>
+          <div class="detalle">
+            ¿Cuánta gente vio a su equipo? Dato directo para negociar su propio
+            patrocinio.
+          </div>
+        </div>
+        <div class="card">
+          <div class="titulo">Agencias de medios</div>
+          <div class="detalle">
+            Perfiles de audiencia por horario y dispositivo para planear pauta.
+          </div>
+        </div>
+        <div class="card">
+          <div class="titulo">Patrocinadores</div>
+          <div class="detalle">
+            ROI medible de cada activación, con números de la plataforma.
+          </div>
+        </div>
+      </div>
+      <div class="nota-pie">
+        API con autenticación, rate limiting y documentación pública — un nuevo
+        flujo de ingresos, no un costo
+      </div>
+    </section>
+
+    <!-- ════════ SLIDE 9 — INTELIGENCIA DE CONTENIDO ════════ -->
+    <section class="slide">
+      <div class="kicker">Eje 4 — Decisiones de contenido</div>
+      <h2 style="font-size: clamp(24px, 3vw, 46px)">
+        ¿Cuánto más vale transmitir a Nacional<br /><span class="acento"
+          >vs. el promedio de la liga?</span
+        >
+      </h2>
+      <div class="sub" style="max-width: 75%">
+        Hoy esa respuesta no existe. Con sus datos, ya la podemos calcular.
+      </div>
+      <div class="grid g2" style="max-width: 70%">
+        <div class="card">
+          <div class="num">1.425</div>
+          <div class="titulo">
+            reproducciones — Junior vs. Santa Fe (final ida)
+          </div>
+          <div class="detalle">
+            El contenido más visto de la muestra. Ese número es plata en la
+            próxima negociación de derechos.
+          </div>
+        </div>
+        <div class="card">
+          <div class="num">7,7%</div>
+          <div class="titulo">de sus usuarios genera el 77% del consumo</div>
+          <div class="detalle">
+            835 usuarios «heavy» sostienen la plataforma. ¿Saben qué contenido
+            los retiene a ellos?
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════ SLIDE 10 — LO QUE CONSTRUIMOS EN 5 MESES ════════ -->
+    <section class="slide">
+      <div class="kicker">El plan — 5 meses</div>
+      <h2 style="font-size: clamp(22px, 2.6vw, 40px)">
+        Seis entregables, <span class="acento">cero promesas vagas</span>
+      </h2>
+      <ul class="lista-limpia">
+        <li>
+          Ingesta en tiempo real — adiós a la carga manual de archivos
+          <span class="tiempo">mes 1</span>
+        </li>
+        <li>
+          Modelo de churn con score por usuario en el dashboard
+          <span class="tiempo">meses 1–2</span>
+        </li>
+        <li>
+          Reportes automáticos por correo con PDF semanal
+          <span class="tiempo">mes 2</span>
+        </li>
+        <li>
+          API para terceros con documentación pública
+          <span class="tiempo">meses 3–4</span>
+        </li>
+        <li>
+          Inteligencia de contenido con métricas editoriales
+          <span class="tiempo">mes 4</span>
+        </li>
+        <li>
+          Producción en AWS — SSL, backups y monitoreo
+          <span class="tiempo">mes 5</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- ════════ SLIDE 11 — EL ROI ════════ -->
+    <section class="slide">
+      <div class="kicker">El retorno</div>
+      <div class="vs">
+        <div class="lado">
+          <div class="cifra">$180M</div>
+          <div class="etiqueta">inversión única<br />(opción completa)</div>
+        </div>
+        <div class="contra">vs.</div>
+        <div class="lado">
+          <div class="cifra" style="color: var(--verde)">$197M+</div>
+          <div class="etiqueta">
+            retorno estimado en 12 meses<br />solo por retención de suscriptores
+          </div>
+        </div>
+      </div>
+      <div class="sub" style="margin-top: 6vh; max-width: 75%">
+        El módulo de churn paga el proyecto completo en el primer año.<br />
+        Los otros tres ejes — reportes, API, contenido — son
+        <b class="acento">ganancia neta</b>.
+      </div>
+      <div class="nota-pie">
+        Supuesto conservador: 1% de retención mensual sobre 50.000 suscriptores
+        a $32.900/mes — se recalcula con su cifra real
+      </div>
+    </section>
+
+    <!-- ════════ SLIDE 12 — POR QUÉ NOSOTROS ════════ -->
+    <section class="slide">
+      <div class="kicker">Por qué nosotros</div>
+      <div class="grid g3" style="max-width: 92%">
+        <div class="card">
+          <div class="num">✓</div>
+          <div class="titulo">Su data ya está procesada</div>
+          <div class="detalle">
+            300.000 eventos reales modelados, indexados y operando. Nadie más
+            empieza desde ahí.
+          </div>
+        </div>
+        <div class="card">
+          <div class="num">✓</div>
+          <div class="titulo">Ya conocemos su arquitectura</div>
+          <div class="detalle">
+            Pipeline, modelo de datos e interfaz: resueltos. El riesgo técnico
+            ya quedó atrás.
+          </div>
+        </div>
+        <div class="card">
+          <div class="num">✓</div>
+          <div class="titulo">7 días vs. meses</div>
+          <div class="detalle">
+            Entregamos funcionando lo que una firma tradicional tarda meses en
+            proponer en PowerPoint.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════ SLIDE 13 — LA PROPUESTA ════════ -->
+    <section class="slide">
+      <div class="kicker">La propuesta</div>
+      <table style="max-width: 88%">
+        <tr>
+          <th style="text-align: left">Opción</th>
+          <th style="text-align: left">Incluye</th>
+          <th style="text-align: right">Inversión</th>
+        </tr>
+        <tr>
+          <td style="text-align: left; font-weight: 700">Esencial</td>
+          <td style="text-align: left; color: var(--texto-suave)">
+            Deployment en producción + ingesta en tiempo real + soporte 1 mes
+          </td>
+          <td class="precio" style="text-align: right">$120M</td>
+        </tr>
+        <tr>
+          <td style="text-align: left; font-weight: 700">Profesional</td>
+          <td style="text-align: left; color: var(--texto-suave)">
+            Esencial + modelo de churn + reportes automáticos
+          </td>
+          <td class="precio" style="text-align: right">$155M</td>
+        </tr>
+        <tr class="recomendada">
+          <td style="text-align: left; font-weight: 700">
+            Completo
+            <span class="pill" style="margin-left: 0.6em">Recomendado</span>
+          </td>
+          <td style="text-align: left; color: var(--texto-suave)">
+            Profesional + API para terceros + inteligencia de contenido
+          </td>
+          <td class="precio" style="text-align: right">$180M</td>
+        </tr>
+      </table>
+      <div class="sub" style="margin-top: 4.5vh">
+        Pago por hitos: 30% firma · 30% primeros módulos · 30% lanzamiento · 10%
+        post-lanzamiento
+      </div>
+    </section>
+
+    <!-- ════════ SLIDE 14 — PRÓXIMOS PASOS ════════ -->
+    <section class="slide">
+      <div class="kicker">Próximos pasos</div>
+      <h2 style="font-size: clamp(24px, 3vw, 46px)">
+        Podemos empezar el <span class="acento">1 de julio</span>
+      </h2>
+      <div class="grid g3" style="max-width: 92%">
+        <div class="card">
+          <div class="num">1</div>
+          <div class="titulo">Lo que necesitamos de Win Sports</div>
+          <div class="detalle">
+            Acceso al stream de eventos de la plataforma y un contacto técnico
+            de su equipo.
+          </div>
+        </div>
+        <div class="card">
+          <div class="num">2</div>
+          <div class="titulo">Cómo se firma</div>
+          <div class="detalle">
+            Contrato por hitos de una página — el borrador está listo hoy para
+            revisión de su equipo legal.
+          </div>
+        </div>
+        <div class="card">
+          <div class="num">3</div>
+          <div class="titulo">Primer entregable</div>
+          <div class="detalle">
+            Ingesta en tiempo real operando en el mes 1. Resultados visibles
+            desde la primera semana.
+          </div>
+        </div>
+      </div>
+      <div class="sub" style="margin-top: 5vh">
+        Gracias — <span class="acento">¿lo vemos en vivo?</span>
+      </div>
+    </section>
+
+    <div class="marca"><b>WinSports</b> Analytics</div>
+    <div class="contador" id="contador"></div>
+    <div class="nav-flechas">
+      <button onclick="mover(-1)">←</button>
+      <button onclick="mover(1)">→</button>
+    </div>
+
+    <script>
+      const slides = document.querySelectorAll(".slide");
+      let actual = Math.min(
+        slides.length - 1,
+        Math.max(0, (parseInt(location.hash.slice(1)) || 1) - 1),
+      );
+
+      function render() {
+        slides.forEach((s, i) => s.classList.toggle("activa", i === actual));
+        document.getElementById("contador").textContent =
+          actual + 1 + " / " + slides.length;
+        document.getElementById("progreso").style.width =
+          ((actual + 1) / slides.length) * 100 + "%";
+        history.replaceState(null, "", "#" + (actual + 1));
+      }
+
+      function mover(d) {
+        actual = Math.min(slides.length - 1, Math.max(0, actual + d));
+        render();
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (["ArrowRight", "ArrowDown", " ", "PageDown"].includes(e.key)) {
+          e.preventDefault();
+          mover(1);
+        } else if (["ArrowLeft", "ArrowUp", "PageUp"].includes(e.key)) {
+          e.preventDefault();
+          mover(-1);
+        } else if (e.key === "Home") {
+          actual = 0;
+          render();
+        } else if (e.key === "End") {
+          actual = slides.length - 1;
+          render();
+        } else if (e.key.toLowerCase() === "f") {
+          document.fullscreenElement
+            ? document.exitFullscreen()
+            : document.documentElement.requestFullscreen();
+        }
+      });
+
+      // Slide 4 — actividad por hora (sesiones reales de Atlas)
+      const horas = [
+        348, 238, 203, 225, 247, 302, 386, 503, 694, 845, 967, 1131, 1066, 1283,
+        2561, 2567, 2326, 2146, 2543, 2180, 2082, 1790, 1307, 644,
+      ];
+      const max = Math.max(...horas);
+      const chart = document.getElementById("chartHoras");
+      horas.forEach((v, h) => {
+        const b = document.createElement("div");
+        b.className = "barra" + (v > 2300 ? " pico" : "");
+        b.style.height = (v / max) * 100 + "%";
+        b.title = h + ":00 — " + v.toLocaleString("es-CO") + " sesiones";
+        chart.appendChild(b);
+      });
+
+      render();
+    </script>
+  </body>
+</html>
