@@ -78,3 +78,8 @@ dump/
 *.tmp
 *.bak
 *.orig
+
+# LaTeX
+*.aux
+*.out
+*.toc
